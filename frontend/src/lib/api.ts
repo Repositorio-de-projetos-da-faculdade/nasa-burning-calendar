@@ -116,3 +116,9 @@ export async function download(path: string, body: unknown, filename: string) {
   Object.assign(document.createElement('a'), { href: url, download: filename }).click()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
+
+/** Consulta da camada do mapa para um período (a mesma chave no mapa, na linha do tempo e nas pré-cargas). */
+export const gridQuery = (l: { year: number | null; month: number | null }) => ({
+  queryKey: ['grid', l.year, l.month],
+  queryFn: () => api.grid(l.year, l.month),
+})

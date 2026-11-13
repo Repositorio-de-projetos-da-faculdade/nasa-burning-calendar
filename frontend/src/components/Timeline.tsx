@@ -1,6 +1,7 @@
+import { useQuery } from '@tanstack/react-query'
 import { Box, Columns2, Pause, Play } from 'lucide-react'
 import { type KeyboardEvent, memo, type PointerEvent, useMemo, useState } from 'react'
-import type { CalendarData } from '../lib/api'
+import { type CalendarData, gridQuery } from '../lib/api'
 import { fmt, MONTHS, MONTHS_LONG } from '../lib/format'
 import { heat } from '../lib/scales'
 import { periodLabel } from '../lib/period'
@@ -33,6 +34,8 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying, pinned, onPi
   const nYears = d.years.length
 
   const [hover, setHover] = useState<number | null>(null)
+  // o mapa do período ainda está a caminho (mesma consulta do mapa, pelo cache)
+  const loading = useQuery(gridQuery(layer)).isFetching
 
   const { bars, byKey } = useMemo(() => {
     const byKey = new Map(d.series.map((c) => [(c.year - y0) * 12 + c.month - 1, c.harmonized]))
@@ -73,7 +76,8 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying, pinned, onPi
   const lastFull = y0 + nYears - 2
 
   return (
-    <div className="widget timeline">
+    <div className="widget timeline" aria-busy={loading}>
+      {loading && <div className="loading-bar" />}
       <div className="tl-controls">
         <button className="play" onClick={() => setPlaying(!playing)} aria-label={playing ? 'Pausar a passagem do tempo' : 'Passar o tempo'}>
           {playing ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" style={{ marginLeft: 2 }} />}

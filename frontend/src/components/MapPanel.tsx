@@ -4,7 +4,7 @@ import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&ur
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { TerraDraw, TerraDrawCircleMode, TerraDrawPolygonMode, TerraDrawRectangleMode } from 'terra-draw'
 import { TerraDrawMapLibreGLAdapter } from 'terra-draw-maplibre-gl-adapter'
-import { api } from '../lib/api'
+import { api, gridQuery } from '../lib/api'
 import { CELL_COORDS, cellColumns, cellKey } from '../lib/cellCanvas'
 import { periodLabel } from '../lib/period'
 import { INK } from '../lib/scales'
@@ -40,8 +40,6 @@ interface Props {
   onDraw: (g: GeoJSON.Geometry) => void
   onPoint: (lat: number, lon: number, radiusKm: number) => void
 }
-
-const gridQuery = (l: Layer) => ({ queryKey: ['grid', l.year, l.month], queryFn: () => api.grid(l.year, l.month) })
 
 export function MapPanel({ selection, layer, pinned, relief, onRegion, onDraw, onPoint }: Props) {
   const el = useRef<HTMLDivElement>(null)
@@ -160,6 +158,12 @@ export function MapPanel({ selection, layer, pinned, relief, onRegion, onDraw, o
     if (!ready || !outlines.data) return
     ;(mapRef.current!.getSource('outlines') as maplibregl.GeoJSONSource).setData(outlines.data)
   }, [ready, outlines.data])
+
+  // enquanto o período pedido não chega, o mapa anterior fica esmaecido (a barra de carregamento está na linha do tempo)
+  const stale = grid.isPlaceholderData
+  useEffect(() => {
+    if (ready) mapRef.current!.setPaintProperty('cells', 'raster-opacity', stale ? 0.45 : 1)
+  }, [ready, stale])
 
   // relevo: troca a textura plana pelas colunas e inclina a câmera
   useEffect(() => {

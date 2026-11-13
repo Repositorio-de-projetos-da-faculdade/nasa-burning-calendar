@@ -152,7 +152,7 @@ h1, h2, p, dl, dd, dt, ol { margin: 0; padding: 0; font-weight: 400; }
 .badge[data-tone='critical'] b, .badge[data-tone='serious'] b { color: var(--above); }
 .badge[data-tone='good'] b { color: var(--below); }
 
-.timeline { width: 100%; display: grid; gap: 8px; padding: 12px 14px 10px; }
+.timeline { position: relative; overflow: hidden; width: 100%; display: grid; gap: 8px; padding: 12px 14px 10px; }
 /* sem isso a faixa de 288 barras empurra o widget para fora da tela estreita */
 .timeline > * { min-width: 0; }
 .tl-controls { display: flex; align-items: center; gap: 10px; }
@@ -323,7 +323,7 @@ h1, h2, p, dl, dd, dt, ol { margin: 0; padding: 0; font-weight: 400; }
 /* ---------- estados ---------- */
 .skeleton { height: 160px; }
 .loading-bar { position: absolute; top: 0; left: 0; right: 0; height: 2px; overflow: hidden; z-index: 20; }
-.loading-bar::after { content: ''; position: absolute; inset: 0; width: 40%; background: var(--text-primary); animation: lb 1s infinite var(--ease); }
+.loading-bar::after { content: ''; position: absolute; inset: 0; width: 40%; background: var(--accent); animation: lb 1s infinite var(--ease); }
 @keyframes lb { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
 .error-box { border-color: var(--above); color: var(--above); }
 .footnote { color: var(--text-muted); font-size: 12px; line-height: 1.5; padding: 12px 16px; }

@@ -7,6 +7,7 @@ import { fmt, MONTHS, MONTHS_LONG } from '../lib/format'
 import { heat } from '../lib/scales'
 import { periodLabel } from '../lib/period'
 import { Hud } from './Hud'
+import { MapKey } from './MapKey'
 import type { Layer } from './MapPanel'
 
 interface Props {
@@ -143,6 +144,14 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying, pinned, onPi
         {d.years.map((y) => (
           <span key={y} data-lit={layer.year === y}>{y}</span>
         ))}
+      </div>
+
+      {/* o que explica o mapa mora com o que o controla: legenda e créditos */}
+      <div className="tl-foot">
+        <MapKey />
+        <p>
+          © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> · © <a href="https://carto.com/attributions" target="_blank" rel="noreferrer">CARTO</a>
+        </p>
       </div>
     </div>
   )

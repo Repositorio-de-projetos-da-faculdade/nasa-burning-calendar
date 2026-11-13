@@ -88,7 +88,7 @@ export function MapPanel({ selection, layer, pinned, relief, onRegion, onDraw, o
       style: BASEMAP,
       bounds: [[-74, -17], [-44, 5.5]],
       fitBoundsOptions: { padding: framing() },
-      attributionControl: { compact: true },
+      attributionControl: false, // os créditos ficam no rodapé da linha do tempo
       // norte sempre para cima: o divisor da comparação corta numa longitude
       dragRotate: false,
       pitchWithRotate: false,

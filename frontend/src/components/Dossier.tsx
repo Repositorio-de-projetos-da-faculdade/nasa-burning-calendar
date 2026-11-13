@@ -10,6 +10,7 @@ import { type CalMode, FireCalendar } from './FireCalendar'
 import { Kpis } from './Kpis'
 import type { Layer } from './MapPanel'
 import { MethodSection } from './MethodSection'
+import { PeriodReading } from './PeriodReading'
 import { RankList } from './RankList'
 
 const KIND_LABEL: Record<string, string> = {
@@ -83,6 +84,7 @@ export function Dossier({ cal, validation, query, mode, setMode, layer, setLayer
         <div className="panel-stack" role="tabpanel" key={tab}>
           {cal.isError && <div className="block error-box">Não foi possível calcular esta área: {cal.error.message}</div>}
           {!d && !cal.isError && <div className="block skeleton" />}
+          {d && tab === 'resumo' && <PeriodReading d={d} layer={layer} />}
           {d && tab === 'resumo' && <Resumo d={d} />}
           {d && tab === 'calendario' && <Calendario d={d} mode={mode} setMode={setMode} layer={layer} setLayer={setLayer} />}
           {d && tab === 'anos' && <Anos d={d} layer={layer} setLayer={setLayer} />}
@@ -151,6 +153,7 @@ function Anos({ d, layer, setLayer }: Period) {
       <section className="block">
         <h2 className="w-title">Os seis maiores</h2>
         <RankList data={d} active={layer.month == null ? layer.year : null} onPick={pick} />
+        <p className="w-foot rank-note">Até 2011, MODIS convertido para a escala do VIIRS; de 2012 em diante, VIIRS medido.</p>
       </section>
     </>
   )

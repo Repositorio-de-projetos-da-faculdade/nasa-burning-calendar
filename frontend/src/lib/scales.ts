@@ -11,7 +11,8 @@ export const INK = {
   hi: '#ededee', text: '#a1a1a6', muted: '#7c7c82', line: '#2c2c2f', grid: '#1b1b1d', surface: '#131314', bar: '#46464b',
 }
 
-export const SERIES = { modis: '#6ea8ff', viirs: '#3ecf9b', accent: '#ff6a1f' }
+/** Séries dos gráficos: a referência em branco, o dado bruto em cinza, o que a análise produz em brasa. */
+export const SERIES = { modis: '#7c7c82', viirs: '#ededee', accent: '#ff6a1f' }
 
 /** Um valor desenhado: lado relativo (0..1) e cor. */
 export interface Mark {

@@ -2,6 +2,7 @@ import { Pause, Play } from 'lucide-react'
 import { type KeyboardEvent, type PointerEvent, useMemo } from 'react'
 import type { CalendarData } from '../lib/api'
 import { MONTHS_LONG } from '../lib/format'
+import { HEAT, heat } from '../lib/scales'
 import type { Layer } from './MapPanel'
 
 interface Props {
@@ -57,7 +58,7 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying }: Props) {
   const lastFull = y0 + nYears - 2
 
   return (
-    <div className="timeline">
+    <div className="widget timeline">
       <div className="tl-controls">
         <button className="play" onClick={() => setPlaying(!playing)} aria-label={playing ? 'Pausar a passagem do tempo' : 'Passar o tempo'}>
           {playing ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" style={{ marginLeft: 2 }} />}
@@ -69,7 +70,7 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying }: Props) {
         </div>
         <div className="map-key" aria-label="Legenda do mapa: quadrados maiores indicam mais focos por célula de 11 km">
           <span>menos</span>
-          {[2, 4, 6, 8, 10].map((s) => <i key={s} style={{ width: s, height: s }} />)}
+          {HEAT.map((c, i) => <i key={c} style={{ width: 2 + i * 2, height: 2 + i * 2, background: c }} />)}
           <span>mais focos por célula de 11 km</span>
         </div>
       </div>
@@ -91,7 +92,7 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying }: Props) {
         onKeyDown={onKey}
       >
         {bars.map((h, i) => (
-          <i key={i} data-lit={lit(i)} style={{ height: `${h}%` }} />
+          <i key={i} data-lit={lit(i)} style={{ height: `${h}%`, background: heat(h / 100) }} />
         ))}
         {layer.year != null && layer.month != null && (
           <b className="tl-head" style={{ left: `${(((layer.year - y0) * 12 + layer.month - 0.5) / bars.length) * 100}%` }} />

@@ -1,5 +1,6 @@
 import type { CalendarData } from '../lib/api'
 import { fmt } from '../lib/format'
+import { heat } from '../lib/scales'
 
 /** Os anos completos com mais focos, em ordem; cada linha leva o mapa para aquele ano. */
 export function RankList({ data, active, onPick, top = 6 }: { data: CalendarData; active: number | null; onPick: (y: number) => void; top?: number }) {
@@ -12,7 +13,7 @@ export function RankList({ data, active, onPick, top = 6 }: { data: CalendarData
           <button className="rank-row" data-active={active === a.year} onClick={() => onPick(a.year)}>
             <span className="rank-n">{i + 1}</span>
             <span className="rank-year num">{a.year}</span>
-            <span className="rank-bar"><i style={{ width: `${(a.total / max) * 100}%` }} data-top={i === 0} /></span>
+            <span className="rank-bar"><i style={{ width: `${(a.total / max) * 100}%`, background: heat(a.total / max) }} /></span>
             <span className="rank-total num">{fmt(a.total)}</span>
             <span className="rank-src">{a.converted ? 'MODIS convertido' : 'VIIRS medido'}</span>
           </button>

@@ -2,7 +2,7 @@ import type { EChartsOption } from 'echarts'
 import { useMemo } from 'react'
 import type { CalendarData, ValidationData } from '../lib/api'
 import { fmt, MONTHS } from '../lib/format'
-import { INK, SERIES } from '../lib/scales'
+import { heat, INK, SERIES } from '../lib/scales'
 import { axisStyle, baseOption, EChart } from './EChart'
 
 type TipParam = { seriesName: string; value: number | null; marker: string; axisValueLabel: string }
@@ -71,7 +71,7 @@ export function SeasonChart({ data }: { data: CalendarData }) {
         <span style={{ color: INK.text }}><i className="dash" style={{ background: INK.text }} />mediana</span>
         <span><i className="band" style={{ background: INK.text }} />faixa típica</span>
       </div>
-      <EChart option={option} height={300} />
+      <EChart option={option} height={240} />
     </div>
   )
 }
@@ -105,7 +105,7 @@ export function AnnualChart({ data, onPick }: { data: CalendarData; onPick: (y: 
         data: data.annual.map((a) => ({
           value: a.total,
           itemStyle: {
-            color: a.year === data.summary.peak_year ? SERIES.accent : INK.bar,
+            color: heat(a.total / Math.max(1, ...data.annual.map((x) => x.total))),
             opacity: a.partial ? 0.45 : 1,
             borderRadius: [2, 2, 0, 0],
             decal: a.converted
@@ -124,7 +124,7 @@ export function AnnualChart({ data, onPick }: { data: CalendarData; onPick: (y: 
   }, [data])
 
   return (
-    <EChart option={option} height={300} onClick={(i) => onPick(data.annual[i].year)} />
+    <EChart option={option} height={240} onClick={(i) => onPick(data.annual[i].year)} />
   )
 }
 
@@ -170,7 +170,7 @@ export function ValidationChart({ data }: { data: ValidationData }) {
         <span><i style={{ background: SERIES.modis }} />MODIS Aqua bruto</span>
         <span style={{ color: SERIES.accent }}><i className="dash" style={{ background: SERIES.accent }} /><span style={{ color: INK.text }}>MODIS harmonizado</span></span>
       </div>
-      <EChart option={option} height={300} />
+      <EChart option={option} height={240} />
     </div>
   )
 }

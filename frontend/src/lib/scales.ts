@@ -1,6 +1,6 @@
 /**
  * Escalas visuais. O calendário usa a mesma linguagem do mapa: um quadrado por valor,
- * cujo tamanho cresce com os focos; a cor só reforça (cinza = quase nada, quase branco = extremo).
+ * cujo tamanho cresce com os focos; a cor reforça com a rampa de calor (brasa = pouco, amarelo = extremo).
  */
 
 /** Número de classes do meio-tom do mapa. */
@@ -20,7 +20,10 @@ export interface Mark {
 }
 
 const QUIET = '#5c5c62'
-const fireColor = (t: number) => (t < 0.18 ? QUIET : t < 0.45 ? '#c2501c' : t < 0.8 ? SERIES.accent : '#ffc9a3')
+/** Rampa de calor, da brasa ao amarelo: a mesma no mapa, no calendário, na linha do tempo e nos anos. */
+export const HEAT = ['#8c2a1c', '#c93a1d', '#ff6a1f', '#ffa22e', '#ffe08a']
+export const heat = (t: number) => HEAT[Math.min(HEAT.length - 1, Math.max(0, Math.floor(t * HEAT.length)))]
+const fireColor = (t: number) => (t < 0.12 ? QUIET : heat(t))
 
 /** Focos -> marca, em escala sqrt (a área do quadrado acompanha o valor). */
 export function fireMarks(max: number) {

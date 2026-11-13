@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { TerraDraw, TerraDrawCircleMode, TerraDrawPolygonMode, TerraDrawRectangleMode } from 'terra-draw'
 import { TerraDrawMapLibreGLAdapter } from 'terra-draw-maplibre-gl-adapter'
 import { api } from '../lib/api'
-import { INK, LEVELS, SERIES } from '../lib/scales'
+import { heat, INK, LEVELS } from '../lib/scales'
 
 maplibregl.setWorkerUrl(maplibreWorkerUrl)
 
@@ -19,7 +19,7 @@ const MONTH_BREAKS = [2, 4, 8, 15, 30, 60, 120, 240, 480]
 /** Espaco reservado ao que fica por cima do mapa (painel a direita, linha do tempo embaixo). */
 const framing = () =>
   innerWidth > 900
-    ? { top: 110, bottom: 250, left: 150, right: (document.getElementById('dossier')?.offsetWidth ?? 520) + 40 }
+    ? { top: 130, bottom: 210, left: 48, right: (document.getElementById('dossier')?.offsetWidth ?? 520) + 48 }
     : { top: 110, bottom: 250, left: 16, right: 16 }
 
 type Tool = 'select' | 'rectangle' | 'polygon' | 'circle' | 'coords'
@@ -78,7 +78,7 @@ export function MapPanel({ selection, layer, onRegion, onDraw, onPoint }: Props)
       map.addSource('cells', { type: 'geojson', data: EMPTY_FC })
       map.addSource('selection', { type: 'geojson', data: EMPTY_FC })
 
-      map.addLayer({ id: 'cells', type: 'fill', source: 'cells', paint: { 'fill-color': SERIES.accent, 'fill-antialias': false } }, firstSymbol)
+      map.addLayer({ id: 'cells', type: 'fill', source: 'cells', paint: { 'fill-color': ['get', 'c'], 'fill-antialias': false } }, firstSymbol)
       map.addLayer({
         id: 'states', type: 'line', source: 'outlines', filter: ['==', ['get', 'kind'], 'state'],
         paint: { 'line-color': INK.hi, 'line-opacity': 0.12, 'line-width': 0.8 },
@@ -139,7 +139,7 @@ export function MapPanel({ selection, layer, onRegion, onDraw, onPoint }: Props)
         const level = breaks.filter((b) => v >= b).length // 0..LEVELS-1
         const h = (CELL / 2) * (0.3 + (0.7 * level) / (LEVELS - 1))
         return {
-          type: 'Feature', properties: {},
+          type: 'Feature', properties: { c: heat(level / LEVELS) },
           geometry: { type: 'Polygon', coordinates: [[[lon - h, lat - h], [lon + h, lat - h], [lon + h, lat + h], [lon - h, lat + h], [lon - h, lat - h]]] },
         }
       }),
@@ -173,7 +173,7 @@ export function MapPanel({ selection, layer, onRegion, onDraw, onPoint }: Props)
       {!ready && <div className="loading-bar" />}
       <div ref={el} className="map-canvas" />
 
-      <div className="tools" role="toolbar" aria-label="Selecionar área">
+      <div className="widget tools" role="toolbar" aria-label="Selecionar área">
         {TOOLS.map((t) => (
           <button key={t.id} className="tool" data-active={tool === t.id} onClick={() => pick(t.id)} title={t.label}>
             <t.icon size={15} />
@@ -184,7 +184,7 @@ export function MapPanel({ selection, layer, onRegion, onDraw, onPoint }: Props)
 
       {tool === 'coords' ? (
         <form
-          className="coord-form"
+          className="widget coord-form"
           onSubmit={(e) => {
             e.preventDefault()
             onPoint(Number(coords.lat), Number(coords.lon), Number(coords.r))

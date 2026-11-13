@@ -14,54 +14,57 @@ function Gauge({ value, expected }: { value: number; expected: number }) {
   )
 }
 
-/** O estado da área hoje: mês corrente em destaque e três fatos em lista. */
+/** O estado da área hoje: um widget para o mês corrente e uma lista de três fatos. */
 export function Kpis({ data }: { data: CalendarData }) {
   const { current: c, ytd, summary: s } = data
   const partial = data.series.some((m) => m.partial)
   const month = MONTHS_LONG[c.month - 1]
   return (
-    <div className="now">
-      <div className="now-lead">
-        <span className="fact-label">
-          {month[0].toUpperCase() + month.slice(1)} de {c.year}
-          {partial ? `, até o dia ${c.day}` : ', último mês'}
-        </span>
-        <span className="now-value num">{fmt(c.value)}</span>
-        <Badge pct={c.anomaly_pct} />
+    <>
+      <section className="widget">
+        <div className="now-row">
+          <div>
+            <h2 className="w-label">
+              {month[0].toUpperCase() + month.slice(1)} de {c.year}
+              {partial ? `, até o dia ${c.day}` : ', último mês'}
+            </h2>
+            <p className="w-value w-value-lg num">{fmt(c.value)}</p>
+          </div>
+          <Badge pct={c.anomaly_pct} />
+        </div>
         <Gauge value={c.value} expected={c.expected} />
-        <span className="fact-foot">
-          {partial ? 'esperado até esta data' : 'mediana do mês'}: <b className="num">{fmt(c.expected)}</b>
-        </span>
-      </div>
+        <p className="w-foot">
+          {partial ? 'Esperado até esta data' : 'Mediana do mês'}: <b className="num">{fmt(c.expected)}</b> focos
+        </p>
+      </section>
 
-      <dl className="facts">
-        <div className="fact">
-          <dt className="fact-label">Acumulado em {ytd.year}</dt>
-          <dd className="fact-value num">{fmt(ytd.value)}</dd>
-          <dd className="fact-foot">
+      <div className="widget facts">
+        <section>
+          <h2 className="w-label">Acumulado em {ytd.year}</h2>
+          <p className="w-value num">{fmt(ytd.value)}</p>
+          <p className="w-foot">
             <Badge pct={ytd.anomaly_pct} />
             {ordinal(ytd.rank)} maior de {ytd.of} anos{partial ? ' até esta data' : ''}
-          </dd>
-        </div>
-        <div className="fact">
-          <dt className="fact-label">Temporada de fogo</dt>
-          <dd className="fact-value">
-            <SeasonDial climatology={data.climatology} season={s.fire_season_months} />
+          </p>
+        </section>
+        <section>
+          <h2 className="w-label">Temporada de fogo</h2>
+          <p className="w-value">
             {monthRange(s.fire_season_months)}
-          </dd>
-          <dd className="fact-foot">
-            concentra <b className="num">{fmt(s.season_share)}%</b> dos focos de um ano típico, com pico em {MONTHS_LONG[s.critical_months[0] - 1]}
-          </dd>
-        </div>
-        <div className="fact">
-          <dt className="fact-label">Ano mais crítico</dt>
-          <dd className="fact-value num">{s.peak_year ?? '—'}</dd>
-          <dd className="fact-foot">
-            <b className="num">{fmt(s.peak_year_total)}</b> focos no ano; mês recorde em {MONTHS[s.record_month.month - 1]}/{s.record_month.year},
-            com {fmt(s.record_month.value)}
-          </dd>
-        </div>
-      </dl>
-    </div>
+            <SeasonDial climatology={data.climatology} season={s.fire_season_months} size={28} />
+          </p>
+          <p className="w-foot">
+            <b className="num">{fmt(s.season_share)}%</b> dos focos de um ano típico, pico em {MONTHS_LONG[s.critical_months[0] - 1]}
+          </p>
+        </section>
+        <section>
+          <h2 className="w-label">Ano mais crítico</h2>
+          <p className="w-value num">{s.peak_year ?? '—'}</p>
+          <p className="w-foot">
+            <b className="num">{fmt(s.peak_year_total)}</b> focos; mês recorde em {MONTHS[s.record_month.month - 1]}/{s.record_month.year}
+          </p>
+        </section>
+      </div>
+    </>
   )
 }

@@ -6,7 +6,8 @@ import { HEAT, heat, LEVELS } from './scales'
  * milhares de polígonos: é o que deixa o arrasto da linha do tempo fluido.
  */
 
-export type Cell = [lon: number, lat: number, focos: number]
+/** Células em sequência: lon, lat, focos, lon, lat, focos… */
+export type Cells = Float32Array
 
 const CELL = 0.1 // lado da célula da grade, em graus
 const PX = 2 // pixels do canvas por célula; a textura é ampliada com interpolação, o que dá o campo contínuo
@@ -35,10 +36,10 @@ export function makeCanvas() {
 }
 
 /** Focos -> nível 0..LEVELS-1. Mês: escala fixa; ano e média: decis (cada nível cobre a mesma quantidade de células). */
-function levels(cells: Cell[], monthly: boolean) {
+function levels(cells: Cells, monthly: boolean) {
   let breaks = MONTH_BREAKS
   if (!monthly) {
-    const sorted = cells.map((c) => c[2]).sort((a, b) => a - b)
+    const sorted = cells.filter((_, i) => i % 3 === 2).sort()
     breaks = Array.from({ length: LEVELS - 1 }, (_, i) => sorted[Math.floor(((i + 1) / LEVELS) * (sorted.length - 1))] ?? 0)
   }
   return (v: number) => {
@@ -48,43 +49,43 @@ function levels(cells: Cell[], monthly: boolean) {
   }
 }
 
-/** Intensidade (0..255) -> RGBA: a rampa de calor interpolada, com opacidade que cresce com a intensidade. */
+/** Intensidade (0..255) -> pixel RGBA de 32 bits: a rampa de calor interpolada, com opacidade que cresce com a intensidade. */
 const PALETTE = (() => {
   const rgb = HEAT.map((h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)))
-  const out = new Uint8ClampedArray(256 * 4)
+  const bytes = new Uint8ClampedArray(256 * 4)
   for (let a = 0; a < 256; a++) {
     const pos = (a / 255) * (rgb.length - 1)
     const i = Math.min(rgb.length - 2, Math.floor(pos))
-    for (let c = 0; c < 3; c++) out[a * 4 + c] = rgb[i][c] + (rgb[i + 1][c] - rgb[i][c]) * (pos - i)
-    out[a * 4 + 3] = a < 6 ? 0 : 96 + a * 0.62
+    for (let c = 0; c < 3; c++) bytes[a * 4 + c] = rgb[i][c] + (rgb[i + 1][c] - rgb[i][c]) * (pos - i)
+    bytes[a * 4 + 3] = a < 6 ? 0 : 96 + a * 0.62
   }
-  return out
+  return new Uint32Array(bytes.buffer)
 })()
 
-/** Um período como campo de calor contínuo: intensidade por célula, levemente borrada, depois colorida pela rampa. */
-export function renderField(cells: Cell[], monthly: boolean) {
+// buffers de trabalho reaproveitados entre períodos
+const intensity = new Uint8Array(WIDTH * HEIGHT)
+const blurred = new Uint8Array(WIDTH * HEIGHT)
+
+/**
+ * Um período como campo de calor contínuo: intensidade por célula, suavizada com os vizinhos, depois colorida pela rampa.
+ * Tudo em arrays (sem filtros nem leitura de volta do canvas): custa poucos milissegundos, o que permite redesenhar a cada mês do arrasto.
+ */
+export function renderField(cells: Cells, monthly: boolean) {
   const level = levels(cells, monthly)
-  const raw = makeCanvas()
-  const rc = raw.getContext('2d')!
-  rc.fillStyle = '#fff'
-  for (const [lon, lat, v] of cells) {
-    rc.globalAlpha = (level(v) + 1) / LEVELS
-    rc.fillRect(lonToX(lon - CELL / 2), latToY(lat + CELL / 2), PX, PX)
+  intensity.fill(0)
+  for (let i = 0; i < cells.length; i += 3) {
+    const x0 = lonToX(cells[i] - CELL / 2), y0 = latToY(cells[i + 1] + CELL / 2)
+    if (x0 < 1 || y0 < 1 || x0 + PX >= WIDTH || y0 + PX >= HEIGHT) continue
+    const a = ((level(cells[i + 2]) + 1) / LEVELS) * 255
+    for (let dy = 0; dy < PX; dy++) intensity.fill(a, (y0 + dy) * WIDTH + x0, (y0 + dy) * WIDTH + x0 + PX)
   }
+  // suavização [1 2 1] na horizontal e depois na vertical
+  for (let i = 1; i < intensity.length - 1; i++) blurred[i] = (intensity[i - 1] + 2 * intensity[i] + intensity[i + 1]) >> 2
+  const img = new ImageData(WIDTH, HEIGHT)
+  const px = new Uint32Array(img.data.buffer)
+  for (let i = WIDTH; i < px.length - WIDTH; i++) px[i] = PALETTE[(blurred[i - WIDTH] + 2 * blurred[i] + blurred[i + WIDTH]) >> 2]
   const out = makeCanvas()
-  const oc = out.getContext('2d', { willReadFrequently: true })!
-  // ponytail: onde ctx.filter não existe (Safari antigo) o campo fica só com a suavização da textura
-  oc.filter = 'blur(0.8px)'
-  oc.drawImage(raw, 0, 0)
-  oc.filter = 'none'
-  const img = oc.getImageData(0, 0, WIDTH, HEIGHT)
-  const d = img.data
-  for (let i = 0; i < d.length; i += 4) {
-    const p = d[i + 3] * 4
-    if (!p) continue
-    d[i] = PALETTE[p]; d[i + 1] = PALETTE[p + 1]; d[i + 2] = PALETTE[p + 2]; d[i + 3] = PALETTE[p + 3]
-  }
-  oc.putImageData(img, 0, 0)
+  out.getContext('2d')!.putImageData(img, 0, 0)
   return out
 }
 
@@ -125,18 +126,17 @@ export function fade(target: HTMLCanvasElement, from: HTMLCanvasElement, to: HTM
 export const cellKey = (lon: number, lat: number) => `${Math.floor(lon * 10)},${Math.floor(lat * 10)}`
 
 /** Modo relevo: cada célula vira uma coluna cuja altura (em metros) e cor seguem o nível. */
-export function cellColumns(cells: Cell[], monthly: boolean): GeoJSON.FeatureCollection {
+export function cellColumns(cells: Cells, monthly: boolean): GeoJSON.FeatureCollection {
   const level = levels(cells, monthly)
   const h = CELL / 2
-  return {
-    type: 'FeatureCollection',
-    features: cells.map(([lon, lat, v]) => {
-      const l = level(v)
-      return {
-        type: 'Feature',
-        properties: { c: heat(l / LEVELS), h: ((l + 1) / LEVELS) * 150_000 },
-        geometry: { type: 'Polygon', coordinates: [[[lon - h, lat - h], [lon + h, lat - h], [lon + h, lat + h], [lon - h, lat + h], [lon - h, lat - h]]] },
-      }
-    }),
+  const features: GeoJSON.Feature[] = []
+  for (let i = 0; i < cells.length; i += 3) {
+    const lon = cells[i], lat = cells[i + 1], l = level(cells[i + 2])
+    features.push({
+      type: 'Feature',
+      properties: { c: heat(l / LEVELS), h: ((l + 1) / LEVELS) * 150_000 },
+      geometry: { type: 'Polygon', coordinates: [[[lon - h, lat - h], [lon + h, lat - h], [lon + h, lat + h], [lon - h, lat + h], [lon - h, lat - h]]] },
+    })
   }
+  return { type: 'FeatureCollection', features }
 }

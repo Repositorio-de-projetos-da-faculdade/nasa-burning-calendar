@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Box, Columns2, Pause, Play } from 'lucide-react'
 import { type KeyboardEvent, memo, type PointerEvent, useMemo, useState } from 'react'
 import { type CalendarData, gridQuery } from '../lib/api'
+import { usePreloadGrids } from '../lib/usePreloadGrids'
 import { fmt, MONTHS, MONTHS_LONG } from '../lib/format'
 import { heat } from '../lib/scales'
 import { periodLabel } from '../lib/period'
@@ -36,6 +37,7 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying, pinned, onPi
   const [hover, setHover] = useState<number | null>(null)
   // o mapa do período ainda está a caminho (mesma consulta do mapa, pelo cache)
   const loading = useQuery(gridQuery(layer)).isFetching
+  const preloaded = usePreloadGrids(d, layer.year)
 
   const { bars, byKey } = useMemo(() => {
     const byKey = new Map(d.series.map((c) => [(c.year - y0) * 12 + c.month - 1, c.harmonized]))
@@ -95,8 +97,9 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying, pinned, onPi
             <Box size={14} />Relevo
           </button>
         </div>
-        {/* o mês sob o cursor, antes de clicar */}
+        {/* o mês sob o cursor, antes de clicar; enquanto o histórico baixa, o quanto falta */}
         <p className="tl-read num" aria-hidden="true">
+          {hover == null && preloaded < 1 && <>Carregando histórico <b>{Math.round(preloaded * 100)}%</b></>}
           {hover != null && byKey.has(hover) && (
             <>{MONTHS[hover % 12]} {y0 + Math.floor(hover / 12)} <b>{fmt(byKey.get(hover)!)}</b> focos</>
           )}

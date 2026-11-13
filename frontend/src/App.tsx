@@ -6,7 +6,7 @@ import { Hud } from './components/Hud'
 import { type Layer, MapPanel } from './components/MapPanel'
 import { Timeline } from './components/Timeline'
 import { TopBar } from './components/TopBar'
-import { api, type AreaQuery } from './lib/api'
+import { api, type AreaQuery, gridQuery } from './lib/api'
 import { type Area, readShare, writeShare } from './lib/share'
 
 function toQuery(a: Area): AreaQuery {
@@ -77,7 +77,7 @@ export default function App() {
     started.current = true
     if (shared.layer) return
     if (!intro) return setLayerRaw({ year: d.summary.record_month.year, month: d.summary.record_month.month })
-    for (const year of d.years) void qc.prefetchQuery({ queryKey: ['grid', year, null], queryFn: () => api.grid(year, null) })
+    for (const year of d.years) void qc.prefetchQuery(gridQuery({ year, month: null }))
     setLayerRaw({ year: d.years[0], month: null })
   }, [d, shared.layer, intro, qc])
 
@@ -95,7 +95,7 @@ export default function App() {
     const near: Layer[] = month == null
       ? [{ year: year - 1, month }, { year: year + 1, month }]
       : Array.from({ length: 12 }, (_, i) => ({ year, month: i + 1 }))
-    for (const n of near) void qc.prefetchQuery({ queryKey: ['grid', n.year, n.month], queryFn: () => api.grid(n.year, n.month) })
+    for (const n of near) void qc.prefetchQuery(gridQuery(n))
   }, [layer.year, layer.month == null, qc]) // eslint-disable-line react-hooks/exhaustive-deps -- só ao trocar de ano ou de modo
 
   // timelapse: um mês (ou um ano) por passo, em laço
@@ -119,7 +119,7 @@ export default function App() {
     }
     const n = next(layer)
     const ahead = next(n)
-    void qc.prefetchQuery({ queryKey: ['grid', ahead.year, ahead.month], queryFn: () => api.grid(ahead.year, ahead.month) })
+    void qc.prefetchQuery(gridQuery(ahead))
     setLayerRaw(n)
   }
   useEffect(() => {

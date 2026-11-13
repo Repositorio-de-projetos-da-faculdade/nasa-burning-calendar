@@ -64,7 +64,8 @@ export interface CalendarData {
 }
 
 export interface GridData {
-  cells: [number, number, number][]
+  /** Células em sequência: lon, lat, focos, lon, lat, focos… Compacto porque o histórico inteiro fica em memória. */
+  cells: Float32Array
   p95: number
   max: number
   per_year_mean: boolean
@@ -100,8 +101,10 @@ export const api = {
   region: (id: string) => get<GeoJSON.Feature>(`/api/regions/${id}`),
   regionAt: (lon: number, lat: number) => get<Region>(`/api/regions/at?lon=${lon}&lat=${lat}`),
   calendar: (q: AreaQuery) => post<CalendarData>('/api/calendar', q),
-  grid: (year: number | null, month: number | null) =>
-    get<GridData>(`/api/grid?${year ? `year=${year}` : ''}${month ? `&month=${month}` : ''}`),
+  grid: async (year: number | null, month: number | null): Promise<GridData> => {
+    const d = await get<Omit<GridData, 'cells'> & { cells: number[][] }>(`/api/grid?${year ? `year=${year}` : ''}${month ? `&month=${month}` : ''}`)
+    return { ...d, cells: Float32Array.from(d.cells.flat()) }
+  },
   validation: () => get<ValidationData>('/api/validation'),
 }
 
@@ -121,4 +124,7 @@ export async function download(path: string, body: unknown, filename: string) {
 export const gridQuery = (l: { year: number | null; month: number | null }) => ({
   queryKey: ['grid', l.year, l.month],
   queryFn: () => api.grid(l.year, l.month),
+  // o histórico não muda durante a sessão: uma vez baixado, fica
+  staleTime: Infinity,
+  gcTime: Infinity,
 })

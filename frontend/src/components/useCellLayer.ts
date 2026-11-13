@@ -1,13 +1,15 @@
 import type * as maplibregl from 'maplibre-gl'
 import { type RefObject, useCallback, useEffect, useRef, useState } from 'react'
-import { type Cell, compose, fade, lonToX, makeCanvas, renderField } from '../lib/cellCanvas'
+import { type Cells, compose, fade, lonToX, makeCanvas, renderField } from '../lib/cellCanvas'
 
 export interface Field {
-  cells: Cell[]
+  cells: Cells
   monthly: boolean
 }
 
 const FADE_MS = 180
+/** Trocas mais próximas que isto são um arrasto (ou o timelapse rápido): sem fusão, cada quadro já é o período. */
+const SCRUB_MS = 300
 
 /**
  * Mantém a textura do mapa de calor: funde um período no seguinte e, com um período fixado,
@@ -19,6 +21,7 @@ export function useCellLayer(mapRef: RefObject<maplibregl.Map | null>, ready: bo
   const fields = useRef<{ a?: HTMLCanvasElement; b?: HTMLCanvasElement }>({})
   const splitRef = useRef(split)
   const cancel = useRef<() => void>(undefined)
+  const lastShown = useRef(0)
 
   const show = useCallback((fadeIn: boolean) => {
     const map = mapRef.current
@@ -27,7 +30,9 @@ export function useCellLayer(mapRef: RefObject<maplibregl.Map | null>, ready: bo
     if (!map || !src || !a) return
     cancel.current?.()
     const splitX = b ? lonToX(map.unproject([splitRef.current * map.getContainer().clientWidth, 0]).lng) : 0
-    if (!fadeIn || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const scrubbing = performance.now() - lastShown.current < SCRUB_MS
+    if (fadeIn) lastShown.current = performance.now()
+    if (!fadeIn || scrubbing || matchMedia('(prefers-reduced-motion: reduce)').matches) {
       compose(view, a, b, splitX)
       // fonte estática: play + pause força o reenvio da textura
       src.play()

@@ -63,8 +63,13 @@ export function MapPanel({ selection, layer, pinned, relief, onRegion, onDraw, o
   )
   const cellCanvas = useCellLayer(mapRef, ready, current, fixed, split)
 
-  /** Focos por célula, para o cartão sob o cursor. */
-  const byCell = useMemo(() => new Map(grid.data?.cells.map((c) => [cellKey(c[0], c[1]), c])), [grid.data])
+  /** Onde cada célula começa na sequência, para o cartão sob o cursor. */
+  const byCell = useMemo(() => {
+    const cells = grid.data?.cells ?? new Float32Array()
+    const at = new Map<string, number>()
+    for (let i = 0; i < cells.length; i += 3) at.set(cellKey(cells[i], cells[i + 1]), i)
+    return { cells, at }
+  }, [grid.data])
 
   // o que os ouvintes do mapa (registrados uma vez) precisam ver sempre atual
   const live = useRef({ tool, byCell, relief, onRegion, onDraw })
@@ -141,8 +146,10 @@ export function MapPanel({ selection, layer, pinned, relief, onRegion, onDraw, o
     // cartão da célula: só com mouse, fora do relevo (a coluna desloca o ponto sob o cursor)
     if (matchMedia('(hover: hover) and (pointer: fine)').matches) {
       map.on('mousemove', (e) => {
-        const c = live.current.relief ? undefined : live.current.byCell.get(cellKey(e.lngLat.lng, e.lngLat.lat))
-        setHover(c ? { x: e.originalEvent.clientX, y: e.originalEvent.clientY, lon: c[0], lat: c[1], v: c[2] } : null)
+        const { cells, at } = live.current.byCell
+        const i = live.current.relief ? undefined : at.get(cellKey(e.lngLat.lng, e.lngLat.lat))
+        // lon/lat arredondados: a célula é a mesma de um período para outro, e a chave do cartão também
+        setHover(i == null ? null : { x: e.originalEvent.clientX, y: e.originalEvent.clientY, lon: +cells[i].toFixed(2), lat: +cells[i + 1].toFixed(2), v: cells[i + 2] })
       })
       map.on('mouseout', () => setHover(null))
       map.on('movestart', () => setHover(null))

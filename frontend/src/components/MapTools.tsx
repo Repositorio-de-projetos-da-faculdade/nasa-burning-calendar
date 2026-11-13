@@ -56,7 +56,8 @@ export function MapTools({ tool, onPick, onPoint, hovered, onReset }: Props) {
           <button className="btn btn-primary" type="submit">Analisar</button>
         </form>
       ) : (
-        hint && <p className="widget hint">{hint}</p>
+        // a dica da ferramenta some sozinha depois de lida; o nome do município sob o cursor fica
+        hint && <p className="widget hint" key={hint} data-fades={!hovered}>{hint}</p>
       )}
     </>
   )

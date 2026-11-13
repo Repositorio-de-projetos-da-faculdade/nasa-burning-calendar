@@ -2,7 +2,7 @@ import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-quer
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Dossier } from './components/Dossier'
 import type { CalMode } from './components/FireCalendar'
-import { Hud } from './components/Hud'
+import { MapKey } from './components/MapKey'
 import { type Layer, MapPanel } from './components/MapPanel'
 import { Timeline } from './components/Timeline'
 import { TopBar } from './components/TopBar'
@@ -119,7 +119,7 @@ export default function App() {
         <TopBar regions={regions.data ?? []} value={area.kind === 'region' ? area.id : ''} onRegion={onRegion} />
         {d && (
           <div className="dock">
-            <Hud d={d} layer={layer} />
+            <MapKey />
             <Timeline
               d={d}
               layer={layer}

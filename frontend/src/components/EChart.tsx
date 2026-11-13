@@ -30,7 +30,7 @@ export function EChart({ option, height, onClick }: { option: echarts.EChartsOpt
 /** Base comum: eixos e grid recessivos, tooltip no tema. */
 export const baseOption: echarts.EChartsOption = {
   backgroundColor: 'transparent',
-  textStyle: { fontFamily: 'Geist Mono Variable, monospace', color: INK.text },
+  textStyle: { fontFamily: 'Geist Variable, system-ui, sans-serif', color: INK.text },
   animationDuration: 300,
   animationEasing: 'cubicOut',
   tooltip: {

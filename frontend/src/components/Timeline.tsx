@@ -6,6 +6,7 @@ import { usePreloadGrids } from '../lib/usePreloadGrids'
 import { fmt, MONTHS, MONTHS_LONG } from '../lib/format'
 import { heat } from '../lib/scales'
 import { periodLabel } from '../lib/period'
+import { Hud } from './Hud'
 import type { Layer } from './MapPanel'
 
 interface Props {
@@ -86,6 +87,14 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying, pinned, onPi
         <button className="play" disabled={locked} onClick={() => setPlaying(!playing)} aria-label={playing ? 'Pausar a passagem do tempo' : 'Passar o tempo'}>
           {playing ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" style={{ marginLeft: 2 }} />}
         </button>
+        <Hud d={d} layer={layer} />
+        {/* o mês sob o cursor, antes de clicar; enquanto o histórico baixa, o quanto falta */}
+        <p className="tl-read num" aria-hidden="true">
+          {locked && <>Carregando histórico <b>{Math.round(preloaded * 100)}%</b></>}
+          {!locked && hover != null && byKey.has(hover) && (
+            <>{MONTHS[hover % 12]} {y0 + Math.floor(hover / 12)} <b>{fmt(byKey.get(hover)!)}</b> focos</>
+          )}
+        </p>
         <div className="seg" role="group" aria-label="Período no mapa" inert={locked}>
           <button data-active={layer.month != null} onClick={() => setLayer({ year: layer.year ?? lastFull, month: layer.month ?? 9 })}>Mês</button>
           <button data-active={byYear} onClick={() => setLayer({ year: layer.year ?? lastFull, month: null })}>Ano</button>
@@ -99,13 +108,6 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying, pinned, onPi
             <Box size={14} />Relevo
           </button>
         </div>
-        {/* o mês sob o cursor, antes de clicar; enquanto o histórico baixa, o quanto falta */}
-        <p className="tl-read num" aria-hidden="true">
-          {locked && <>Carregando histórico <b>{Math.round(preloaded * 100)}%</b></>}
-          {!locked && hover != null && byKey.has(hover) && (
-            <>{MONTHS[hover % 12]} {y0 + Math.floor(hover / 12)} <b>{fmt(byKey.get(hover)!)}</b> focos</>
-          )}
-        </p>
       </div>
 
       <div

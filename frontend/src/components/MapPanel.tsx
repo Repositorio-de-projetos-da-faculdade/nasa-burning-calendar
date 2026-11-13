@@ -22,7 +22,7 @@ const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', feature
 /** Espaço reservado ao que fica por cima do mapa (painel à direita, linha do tempo embaixo). */
 const framing = () =>
   innerWidth > 900
-    ? { top: 130, bottom: 270, left: 48, right: (document.getElementById('dossier')?.offsetWidth ?? 520) + 48 }
+    ? { top: 130, bottom: 190, left: 48, right: (document.getElementById('dossier')?.offsetWidth ?? 520) + 48 }
     : { top: 110, bottom: 280, left: 16, right: 16 }
 
 export interface Layer {

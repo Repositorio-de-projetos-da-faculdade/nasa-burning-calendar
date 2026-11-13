@@ -22,7 +22,7 @@ export function ExportMenu({ area, slug, defaultRange }: {
 
   return (
     <div style={{ position: 'relative' }}>
-      <button className="btn btn-primary" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+      <button className="btn" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
         <Download size={15} /> Exportar CSV
       </button>
       {open && (

@@ -23,7 +23,7 @@ export function Kpis({ data }: { data: CalendarData }) {
   const gap = missingMonths(data)
   return (
     <>
-      <section className="widget">
+      <section className="block">
         <div className="now-row">
           <div>
             <p className="eyebrow">Agora</p>
@@ -41,7 +41,7 @@ export function Kpis({ data }: { data: CalendarData }) {
         </p>
       </section>
 
-      <div className="widget facts">
+      <div className="block facts">
         <section>
           <h2 className="w-label">Acumulado em {ytd.year}</h2>
           <p className="w-value num">{fmt(ytd.value)}</p>

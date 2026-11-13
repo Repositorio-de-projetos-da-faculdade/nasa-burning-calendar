@@ -2,7 +2,6 @@ import type { CalendarData } from '../lib/api'
 import { fmt, MONTHS_LONG } from '../lib/format'
 import { Badge } from './Badge'
 import { CountUp } from './CountUp'
-import { MapKey } from './MapKey'
 import type { Layer } from './MapPanel'
 
 interface Readout {
@@ -38,20 +37,17 @@ function readout(d: CalendarData, layer: Layer): Readout {
   }
 }
 
-/** Widget do período: área, quando e quantos focos. */
+/** Leitura do período, dentro da linha do tempo que o controla: área, quando e quantos focos. */
 export function Hud({ d, layer }: { d: CalendarData; layer: Layer }) {
   const r = readout(d, layer)
   return (
-    <div className="widget hud">
-      <p className="eyebrow">No mapa</p>
-      <h1 className="hud-area">{d.area.name}</h1>
-      <p className="hud-when">{r.when}</p>
-      <p className="hud-value num">{r.value == null ? '—' : <CountUp value={r.value} />}</p>
-      <p className="hud-foot">
+    <div className="hud">
+      <p className="hud-when">{d.area.name} · {r.when}</p>
+      <p className="hud-line">
+        <b className="hud-value num">{r.value == null ? '—' : <CountUp value={r.value} />}</b>
         {r.pct !== undefined && <Badge pct={r.pct} />}
-        <span>{r.note}</span>
+        <span className="hud-note">{r.note}</span>
       </p>
-      <MapKey />
     </div>
   )
 }

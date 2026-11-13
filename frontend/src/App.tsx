@@ -58,6 +58,7 @@ export default function App() {
   }, [area, regionFeature.data])
 
   const onRegion = useCallback((id: string) => setArea({ kind: 'region', id }), [])
+  const onReset = useCallback(() => setArea({ kind: 'region', id: 'amazonia' }), [])
   const onDraw = useCallback((geometry: GeoJSON.Geometry) => setArea({ kind: 'drawn', geometry }), [])
   const onPoint = useCallback((lat: number, lon: number, r: number) => setArea({ kind: 'point', lat, lon, r }), [])
 
@@ -131,7 +132,7 @@ export default function App() {
   return (
     <div className="app" data-panel={panelOpen ? 'open' : 'closed'}>
       <div className="stage">
-        <MapPanel selection={selection} layer={layer} pinned={pinned} relief={relief} onRegion={onRegion} onDraw={onDraw} onPoint={onPoint} />
+        <MapPanel selection={selection} layer={layer} pinned={pinned} relief={relief} onRegion={onRegion} onDraw={onDraw} onPoint={onPoint} onReset={area.kind === 'region' && area.id === 'amazonia' ? undefined : onReset} />
         <TopBar regions={regions.data ?? []} value={area.kind === 'region' ? area.id : ''} onRegion={onRegion} />
         {d && (
           <div className="dock">

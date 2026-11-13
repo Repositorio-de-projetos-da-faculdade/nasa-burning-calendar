@@ -1,5 +1,6 @@
-import { Circle, Crosshair, MousePointerClick, Pentagon, Square } from 'lucide-react'
+import { Circle, Crosshair, MousePointerClick, Pentagon, Square, Undo2 } from 'lucide-react'
 import { useState } from 'react'
+import type { Region } from '../lib/api'
 
 export type Tool = 'select' | 'rectangle' | 'polygon' | 'circle' | 'coords'
 
@@ -15,12 +16,15 @@ interface Props {
   tool: Tool
   onPick: (t: Tool) => void
   onPoint: (lat: number, lon: number, radiusKm: number) => void
+  /** Município sob o cursor, com a ferramenta de município ativa. */
+  hovered: Region | null
+  onReset?: () => void
 }
 
 /** Como escolher a área: barra de ferramentas, dica da ferramenta ativa e o formulário de coordenadas. */
-export function MapTools({ tool, onPick, onPoint }: Props) {
+export function MapTools({ tool, onPick, onPoint, hovered, onReset }: Props) {
   const [coords, setCoords] = useState({ lat: '-9.0', lon: '-55.0', r: '50' })
-  const hint = TOOLS.find((t) => t.id === tool)?.hint
+  const hint = hovered ? `${hovered.name}${hovered.uf ? ` · ${hovered.uf}` : ''} — clique para analisar` : TOOLS.find((t) => t.id === tool)?.hint
   return (
     <>
       <div className="widget tools" role="toolbar" aria-label="Selecionar área">
@@ -30,6 +34,12 @@ export function MapTools({ tool, onPick, onPoint }: Props) {
             {t.label}
           </button>
         ))}
+        {onReset && (
+          <button className="tool tool-reset" onClick={onReset}>
+            <Undo2 size={15} />
+            Visão geral
+          </button>
+        )}
       </div>
 
       {tool === 'coords' ? (

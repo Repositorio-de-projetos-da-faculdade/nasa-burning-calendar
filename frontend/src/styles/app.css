@@ -115,6 +115,7 @@ h1, h2, p, dl, dd, dt, ol { margin: 0; padding: 0; font-weight: 400; }
 }
 .tool:not([data-active='true']):hover { background: var(--fill-1); color: var(--text-primary); }
 .tool:active { transform: scale(0.97); }
+.tool-reset { margin-left: 4px; color: var(--text-primary); background: var(--fill-2); }
 .tool[data-active='true'] { background: var(--accent); color: var(--on-accent); }
 .hint { position: absolute; top: 112px; left: var(--gap); z-index: 5; padding: 8px 12px; border-radius: 12px; font-size: 12px; color: var(--text-secondary); white-space: nowrap; max-width: calc(100% - var(--side) - var(--gap)); overflow: hidden; text-overflow: ellipsis; }
 .coord-form { position: absolute; top: 112px; left: var(--gap); z-index: 5; padding: 12px; display: grid; grid-template-columns: repeat(3, 84px) auto; gap: 8px; align-items: end; border-radius: 14px; transform-origin: top left; animation: pop 160ms var(--ease-out); }

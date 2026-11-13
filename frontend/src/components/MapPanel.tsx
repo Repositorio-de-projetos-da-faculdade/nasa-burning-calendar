@@ -12,6 +12,7 @@ import { CellCard, type CellHover } from './CellCard'
 import { MapCompare } from './MapCompare'
 import { MapTools, type Tool } from './MapTools'
 import { useCellLayer } from './useCellLayer'
+import { useRegionHover } from './useRegionHover'
 
 maplibregl.setWorkerUrl(maplibreWorkerUrl)
 
@@ -39,9 +40,11 @@ interface Props {
   onRegion: (id: string) => void
   onDraw: (g: GeoJSON.Geometry) => void
   onPoint: (lat: number, lon: number, radiusKm: number) => void
+  /** Volta à Amazônia inteira; ausente quando ela já é a área. */
+  onReset?: () => void
 }
 
-export function MapPanel({ selection, layer, pinned, relief, onRegion, onDraw, onPoint }: Props) {
+export function MapPanel({ selection, layer, pinned, relief, onRegion, onDraw, onPoint, onReset }: Props) {
   const el = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const drawRef = useRef<TerraDraw | null>(null)
@@ -62,6 +65,7 @@ export function MapPanel({ selection, layer, pinned, relief, onRegion, onDraw, o
     [pinned, relief, pinnedGrid.data, pinnedMonthly],
   )
   const cellCanvas = useCellLayer(mapRef, ready, current, fixed, split)
+  const hovered = useRegionHover(mapRef, ready, tool === 'select')
 
   /** Onde cada célula começa na sequência, para o cartão sob o cursor. */
   const byCell = useMemo(() => {
@@ -208,7 +212,7 @@ export function MapPanel({ selection, layer, pinned, relief, onRegion, onDraw, o
     <div className="map-wrap">
       {!ready && <div className="loading-bar" />}
       <div ref={el} className="map-canvas" />
-      <MapTools tool={tool} onPick={pick} onPoint={onPoint} />
+      <MapTools tool={tool} onPick={pick} onPoint={onPoint} hovered={hovered} onReset={onReset} />
       {fixed && pinned && <MapCompare split={split} setSplit={setSplit} left={periodLabel(pinned)} right={periodLabel(layer)} />}
       {hover && <CellCard hover={hover} period={periodLabel(layer)} />}
     </div>

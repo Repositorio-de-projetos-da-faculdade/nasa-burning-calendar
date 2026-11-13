@@ -94,6 +94,7 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying }: Props) {
         }}
         onPointerMove={(e) => {
           const i = indexAt(e)
+          if (i === hover) return // mesmo mês: nada a refazer
           setHover(i)
           if (e.buttons === 1) pick(i)
         }}

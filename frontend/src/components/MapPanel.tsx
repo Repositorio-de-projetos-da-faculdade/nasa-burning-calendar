@@ -6,15 +6,14 @@ import { useEffect, useRef, useState } from 'react'
 import { TerraDraw, TerraDrawCircleMode, TerraDrawPolygonMode, TerraDrawRectangleMode } from 'terra-draw'
 import { TerraDrawMapLibreGLAdapter } from 'terra-draw-maplibre-gl-adapter'
 import { api } from '../lib/api'
-import { heat, INK, LEVELS } from '../lib/scales'
+import { CELL_COORDS, drawCells, makeCellCanvas } from '../lib/cellCanvas'
+import { INK } from '../lib/scales'
 
 maplibregl.setWorkerUrl(maplibreWorkerUrl)
 
 const BASEMAP = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
 const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
-const CELL = 0.1 // lado da celula da grade, em graus
 /** Escala fixa (focos por celula no mes): assim o mapa apaga na chuva e acende na seca. */
-const MONTH_BREAKS = [2, 4, 8, 15, 30, 60, 120, 240, 480]
 
 /** Espaco reservado ao que fica por cima do mapa (painel a direita, linha do tempo embaixo). */
 const framing = () =>
@@ -47,6 +46,8 @@ const TOOLS: { id: Tool; label: string; icon: typeof Square; hint: string }[] = 
 export function MapPanel({ selection, layer, onRegion, onDraw, onPoint }: Props) {
   const el = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
+  const cellCanvas = useRef<HTMLCanvasElement>(null!)
+  cellCanvas.current ??= makeCellCanvas()
   const drawRef = useRef<TerraDraw | null>(null)
   const toolRef = useRef<Tool>('select')
   const cbs = useRef({ onRegion, onDraw })
@@ -78,11 +79,11 @@ export function MapPanel({ selection, layer, onRegion, onDraw, onPoint }: Props)
       // do mapa base ficam só os nomes de países e estados; cidades e rios disputam com os dados
       for (const l of symbols) if (!/country|state/.test(l.id)) map.setLayoutProperty(l.id, 'visibility', 'none')
       map.addSource('outlines', { type: 'geojson', data: EMPTY_FC })
-      // trocar o período refaz esta fonte inteira: sem simplificação e com poucos níveis de zoom o reprocessamento é curto
-      map.addSource('cells', { type: 'geojson', data: EMPTY_FC, maxzoom: 6, tolerance: 0, buffer: 8 })
+      map.addSource('cells', { type: 'canvas', canvas: cellCanvas.current, coordinates: CELL_COORDS, animate: false })
       map.addSource('selection', { type: 'geojson', data: EMPTY_FC })
 
-      map.addLayer({ id: 'cells', type: 'fill', source: 'cells', paint: { 'fill-color': ['get', 'c'], 'fill-antialias': false } }, firstSymbol)
+      // vizinho mais próximo: os quadrados ficam com borda seca em qualquer zoom
+      map.addLayer({ id: 'cells', type: 'raster', source: 'cells', paint: { 'raster-resampling': 'nearest', 'raster-fade-duration': 0 } }, firstSymbol)
       map.addLayer({
         id: 'states', type: 'line', source: 'outlines', filter: ['==', ['get', 'kind'], 'state'],
         paint: { 'line-color': INK.hi, 'line-opacity': 0.12, 'line-width': 0.8 },
@@ -132,23 +133,11 @@ export function MapPanel({ selection, layer, onRegion, onDraw, onPoint }: Props)
   useEffect(() => {
     if (!ready || !grid.data) return
     const map = mapRef.current!
-    // ano e media: classes por decis (cada nivel cobre a mesma quantidade de celulas); mes: escala fixa
-    const sorted = grid.data.cells.map((c) => c[2]).sort((a, b) => a - b)
-    const deciles = Array.from({ length: LEVELS - 1 }, (_, i) => sorted[Math.floor(((i + 1) / LEVELS) * (sorted.length - 1))] ?? 0)
-    const breaks = monthly.current ? MONTH_BREAKS : deciles
-    // meio-tom: cada celula vira um quadrado cujo lado cresce com o nivel
-    const fc: GeoJSON.FeatureCollection = {
-      type: 'FeatureCollection',
-      features: grid.data.cells.map(([lon, lat, v]) => {
-        const level = breaks.filter((b) => v >= b).length // 0..LEVELS-1
-        const h = (CELL / 2) * (0.3 + (0.7 * level) / (LEVELS - 1))
-        return {
-          type: 'Feature', properties: { c: heat(level / LEVELS) },
-          geometry: { type: 'Polygon', coordinates: [[[lon - h, lat - h], [lon + h, lat - h], [lon + h, lat + h], [lon - h, lat + h], [lon - h, lat - h]]] },
-        }
-      }),
-    }
-    ;(map.getSource('cells') as maplibregl.GeoJSONSource).setData(fc)
+    drawCells(cellCanvas.current, grid.data.cells, monthly.current)
+    // fonte estática: play + pause força o reenvio da textura
+    const src = map.getSource('cells') as maplibregl.CanvasSource
+    src.play()
+    src.pause()
   }, [ready, grid.data])
 
   useEffect(() => {

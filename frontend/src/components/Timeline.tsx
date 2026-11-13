@@ -1,8 +1,9 @@
-import { Pause, Play } from 'lucide-react'
-import { type KeyboardEvent, type PointerEvent, useMemo, useState } from 'react'
+import { Box, Columns2, Pause, Play } from 'lucide-react'
+import { type KeyboardEvent, memo, type PointerEvent, useMemo, useState } from 'react'
 import type { CalendarData } from '../lib/api'
 import { fmt, MONTHS, MONTHS_LONG } from '../lib/format'
 import { heat } from '../lib/scales'
+import { periodLabel } from '../lib/period'
 import type { Layer } from './MapPanel'
 
 interface Props {
@@ -11,13 +12,23 @@ interface Props {
   setLayer: (l: Layer) => void
   playing: boolean
   setPlaying: (p: boolean) => void
+  /** Período fixado para comparar no mapa (ou nenhum). */
+  pinned: Layer | null
+  onPin: () => void
+  relief: boolean
+  onRelief: () => void
 }
+
+/** As barras só dependem dos dados: memoizadas, arrastar não as recria. */
+const Bars = memo(function Bars({ bars }: { bars: number[] }) {
+  return bars.map((h, i) => <i key={i} style={{ height: `${h}%`, background: heat(h / 100) }} />)
+})
 
 /**
  * Os anos de satélite como uma faixa só: uma barra por mês, altura pelos focos da área.
  * Arrastar sobre ela escolhe o período mostrado no mapa.
  */
-export function Timeline({ d, layer, setLayer, playing, setPlaying }: Props) {
+export function Timeline({ d, layer, setLayer, playing, setPlaying, pinned, onPin, relief, onRelief }: Props) {
   const y0 = d.years[0]
   const nYears = d.years.length
 
@@ -35,8 +46,9 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying }: Props) {
   }, [d, y0, nYears])
 
   const byYear = layer.year != null && layer.month == null
-  const lit = (i: number) =>
-    layer.year != null && Math.floor(i / 12) === layer.year - y0 && (layer.month == null || i % 12 === layer.month - 1)
+  // faixa de destaque: o mês (1 barra) ou o ano inteiro (12 barras)
+  const litStart = layer.year == null ? null : (layer.year - y0) * 12 + (layer.month ?? 1) - 1
+  const litSpan = layer.month == null ? 12 : 1
 
   const pick = (i: number) => {
     const year = y0 + Math.floor(i / 12)
@@ -71,6 +83,14 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying }: Props) {
           <button data-active={byYear} onClick={() => setLayer({ year: layer.year ?? lastFull, month: null })}>Ano</button>
           <button data-active={layer.year == null} onClick={() => setLayer({ year: null, month: null })}>Média</button>
         </div>
+        <div className="seg" role="group" aria-label="Visualização do mapa">
+          <button data-active={!!pinned} onClick={onPin} title="Fixa o período atual de um lado do mapa; a linha do tempo muda o outro">
+            <Columns2 size={14} />{pinned ? `Comparando com ${periodLabel(pinned)}` : 'Comparar'}
+          </button>
+          <button data-active={relief} onClick={onRelief} title="Mostra os focos como colunas em relevo">
+            <Box size={14} />Relevo
+          </button>
+        </div>
         {/* o mês sob o cursor, antes de clicar */}
         <p className="tl-read num" aria-hidden="true">
           {hover != null && byKey.has(hover) && (
@@ -101,11 +121,9 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying }: Props) {
         onPointerLeave={() => setHover(null)}
         onKeyDown={onKey}
       >
-        {bars.map((h, i) => (
-          <i key={i} data-lit={lit(i)} style={{ height: `${h}%`, background: heat(h / 100) }} />
-        ))}
-        {layer.year != null && layer.month != null && (
-          <b className="tl-head" style={{ left: `${(((layer.year - y0) * 12 + layer.month - 0.5) / bars.length) * 100}%` }} />
+        <Bars bars={bars} />
+        {litStart != null && (
+          <b className="tl-lit" style={{ left: `${(litStart / bars.length) * 100}%`, width: `${(litSpan / bars.length) * 100}%` }} />
         )}
       </div>
 

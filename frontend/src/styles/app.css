@@ -129,6 +129,14 @@ h1, h2, p, dl, dd, dt, ol { margin: 0; padding: 0; font-weight: 400; }
 .maplibregl-ctrl-group button + button { border-top: 1px solid var(--border) !important; }
 .maplibregl-ctrl-icon { filter: invert(0.85); }
 
+/* ---------- comparação lado a lado ---------- */
+.compare { position: absolute; top: 0; bottom: 0; width: 24px; margin-left: -12px; z-index: 4; cursor: ew-resize; touch-action: none; }
+.compare::before { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: var(--text-primary); }
+.compare-grip { position: absolute; top: 50%; left: 50%; width: 8px; height: 40px; margin: -20px 0 0 -4px; border-radius: 4px; background: var(--text-primary); }
+.compare-tag { position: absolute; top: 50%; margin-top: -12px; height: 24px; padding: 0 8px; border-radius: 6px; font-size: 12px; line-height: 24px; white-space: nowrap; background: var(--text-primary); color: var(--bg); pointer-events: none; }
+.compare-l { right: 28px; }
+.compare-r { left: 28px; }
+
 /* ---------- doca inferior: leitura do período + linha do tempo ---------- */
 .dock { position: absolute; left: var(--gap); right: var(--side); bottom: var(--gap); z-index: 6; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; pointer-events: none; transition: right 300ms var(--ease); }
 .dock > * { pointer-events: auto; }
@@ -155,15 +163,17 @@ h1, h2, p, dl, dd, dt, ol { margin: 0; padding: 0; font-weight: 400; }
 .play:hover { background: #fff; }
 .play:active { transform: scale(0.94); }
 .seg { display: inline-flex; flex: none; padding: 2px; gap: 2px; border-radius: var(--r); background: var(--fill-1); }
-.seg button { height: 26px; border: 0; background: transparent; padding: 0 12px; border-radius: 8px; font-size: 13px; color: var(--text-secondary); cursor: pointer; white-space: nowrap; transition: background-color 150ms var(--ease), color 150ms var(--ease), transform 120ms var(--ease-out); }
+.seg button { display: inline-flex; align-items: center; gap: 6px; height: 26px; border: 0; background: transparent; padding: 0 12px; border-radius: 8px; font-size: 13px; color: var(--text-secondary); cursor: pointer; white-space: nowrap; transition: background-color 150ms var(--ease), color 150ms var(--ease), transform 120ms var(--ease-out); }
 .seg button:not([data-active='true']):hover { color: var(--text-primary); }
 .seg button:active { transform: scale(0.97); }
 .seg button[data-active='true'] { background: var(--accent); color: var(--on-accent); }
+.map-key-ramp { display: inline-flex; }
+.map-key-ramp i { width: 12px; height: 8px; }
 .map-key { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
 .tl-strip { position: relative; display: flex; align-items: flex-end; gap: 1px; height: 48px; cursor: ew-resize; touch-action: none; border-bottom: 1px solid var(--border-strong); }
 .tl-strip i { flex: 1; min-width: 0; pointer-events: none; opacity: 0.8; }
-.tl-strip i[data-lit='true'] { background: var(--text-primary) !important; opacity: 1; }
-.tl-head { position: absolute; top: -6px; bottom: 0; width: 1px; background: var(--text-primary); pointer-events: none; }
+/* destaque do período: uma faixa clara por cima das barras */
+.tl-lit { position: absolute; top: -6px; bottom: 0; min-width: 2px; background: rgba(237, 237, 238, 0.85); mix-blend-mode: overlay; box-shadow: 0 0 0 1px rgba(237, 237, 238, 0.5); pointer-events: none; }
 .tl-read { margin-left: auto; font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
 .tl-read b { font-family: var(--font-mono); font-weight: 500; color: var(--text-primary); }
 .tl-years { display: flex; font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
@@ -255,7 +265,6 @@ h1, h2, p, dl, dd, dt, ol { margin: 0; padding: 0; font-weight: 400; }
 @keyframes mark-in { from { opacity: 0; scale: 0.7; } }
 .cal[data-hovering='true'] .cal-c:not([data-lit='true'])::after { opacity: 0.3; }
 .cal-c[data-partial='true']::after { background: transparent; box-shadow: inset 0 0 0 2px var(--c); }
-.cal-c[data-selected='true']::after { outline: 2px solid var(--text-primary); outline-offset: 2px; }
 .cal-c[data-na='true'] { pointer-events: none; }
 .cal-c[data-na='true']::after { content: none; }
 .cal .cal-c:active::after { scale: 0.9; }
@@ -276,6 +285,8 @@ h1, h2, p, dl, dd, dt, ol { margin: 0; padding: 0; font-weight: 400; }
 .tip-title { font-weight: 500; margin-bottom: 8px; display: flex; justify-content: space-between; gap: 12px; }
 .tip-row { display: flex; justify-content: space-between; gap: 16px; color: var(--text-secondary); line-height: 1.65; }
 .tip-row b { color: var(--text-primary); font-weight: 500; font-family: var(--font-mono); }
+.spark { display: flex; align-items: flex-end; gap: 1px; height: 32px; margin: 8px 0 4px; border-bottom: 1px solid var(--border-strong); }
+.spark i { flex: 1; }
 .tip-big { font-size: 20px; font-weight: 500; margin-bottom: 4px; }
 
 /* ---------- gráficos ---------- */
@@ -341,6 +352,12 @@ h1, h2, p, dl, dd, dt, ol { margin: 0; padding: 0; font-weight: 400; }
   .maplibregl-ctrl-top-left { display: none; }
   .maplibregl-ctrl-top-right { top: 108px; }
   .tl-strip { gap: 0; }
+  .tl-controls { flex-wrap: wrap; }
+  .tl-read { display: none; }
+  /* o widget do período encolhe para não cobrir o mapa */
+  .hud { padding: 10px 12px; }
+  .hud .eyebrow, .hud .map-key { display: none; }
+  .hud-value { font-size: 28px; margin: 6px 0 4px; }
   .tl-years span:not(:nth-child(4n + 1)) { visibility: hidden; }
   .panel-toggle { display: none; }
   .panel, .app[data-panel='closed'] .panel { position: static; width: auto; margin: var(--gap); transform: none; opacity: 1; visibility: visible; overflow: visible; }

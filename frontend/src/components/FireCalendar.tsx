@@ -1,4 +1,4 @@
-import { type CSSProperties, Fragment, useMemo, useState } from 'react'
+import { type CSSProperties, Fragment, memo, useMemo, useState } from 'react'
 import type { CalendarData, MonthCell } from '../lib/api'
 import { fmt, fmtCompact, fmtPct, MONTHS, MONTHS_LONG } from '../lib/format'
 import { ANOMALY_LEGEND, anomalyMark, fireMarks, type Mark, SERIES } from '../lib/scales'
@@ -9,14 +9,16 @@ export type CalMode = 'count' | 'anomaly'
 interface Props {
   data: CalendarData
   mode: CalMode
-  selected: { year: number; month: number } | null
   onSelect: (year: number, month: number) => void
 }
 
 const markStyle = (m: Mark) => ({ '--s': m.size, '--c': m.color }) as CSSProperties
 
-/** Matriz ano × mês: cada mês é um quadrado cujo tamanho cresce com os focos (ou com a distância do normal). */
-export function FireCalendar({ data, mode, selected, onSelect }: Props) {
+/**
+ * Matriz ano × mês: cada mês é um quadrado cujo tamanho cresce com os focos (ou com a distância do normal).
+ * O mês selecionado é marcado de fora, por CSS, pelo atributo data-k ("ano-mês") de cada célula.
+ */
+export const FireCalendar = memo(function FireCalendar({ data, mode, onSelect }: Props) {
   const { tip, show, hide } = useTooltip()
   const [hover, setHover] = useState<{ year: number; month: number } | null>(null)
 
@@ -78,7 +80,7 @@ export function FireCalendar({ data, mode, selected, onSelect }: Props) {
               style={{ ...markStyle(markOf(c)), '--r': r } as CSSProperties}
               data-lit={hover != null && (hover.year === y || hover.month === i + 1)}
               data-partial={c.partial}
-              data-selected={selected?.year === y && selected?.month === i + 1}
+              data-k={`${y}-${i + 1}`}
               onMouseMove={(e) => {
                 setHover({ year: y, month: i + 1 })
                 show(e, tipContent(c))
@@ -178,4 +180,4 @@ export function FireCalendar({ data, mode, selected, onSelect }: Props) {
       <Tooltip tip={tip} />
     </div>
   )
-}
+})

@@ -1,27 +1,29 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { Circle, Crosshair, MousePointerClick, Pentagon, Square } from 'lucide-react'
 import * as maplibregl from 'maplibre-gl'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { TerraDraw, TerraDrawCircleMode, TerraDrawPolygonMode, TerraDrawRectangleMode } from 'terra-draw'
 import { TerraDrawMapLibreGLAdapter } from 'terra-draw-maplibre-gl-adapter'
 import { api } from '../lib/api'
-import { CELL_COORDS, drawCells, makeCellCanvas } from '../lib/cellCanvas'
+import { CELL_COORDS, cellColumns, cellKey } from '../lib/cellCanvas'
+import { periodLabel } from '../lib/period'
 import { INK } from '../lib/scales'
+import { CellCard, type CellHover } from './CellCard'
+import { MapCompare } from './MapCompare'
+import { MapTools, type Tool } from './MapTools'
+import { useCellLayer } from './useCellLayer'
 
 maplibregl.setWorkerUrl(maplibreWorkerUrl)
 
 const BASEMAP = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
 const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
-/** Escala fixa (focos por celula no mes): assim o mapa apaga na chuva e acende na seca. */
 
-/** Espaco reservado ao que fica por cima do mapa (painel a direita, linha do tempo embaixo). */
+/** Espaço reservado ao que fica por cima do mapa (painel à direita, linha do tempo embaixo). */
 const framing = () =>
   innerWidth > 900
     ? { top: 130, bottom: 270, left: 48, right: (document.getElementById('dossier')?.offsetWidth ?? 520) + 48 }
-    : { top: 110, bottom: 250, left: 16, right: 16 }
+    : { top: 110, bottom: 280, left: 16, right: 16 }
 
-type Tool = 'select' | 'rectangle' | 'polygon' | 'circle' | 'coords'
 export interface Layer {
   year: number | null
   month: number | null
@@ -30,36 +32,47 @@ export interface Layer {
 interface Props {
   selection: GeoJSON.Feature | null
   layer: Layer
+  /** Período fixado para comparar: aparece à esquerda do divisor. */
+  pinned: Layer | null
+  /** Modo relevo: células como colunas, câmera inclinada. */
+  relief: boolean
   onRegion: (id: string) => void
   onDraw: (g: GeoJSON.Geometry) => void
   onPoint: (lat: number, lon: number, radiusKm: number) => void
 }
 
-const TOOLS: { id: Tool; label: string; icon: typeof Square; hint: string }[] = [
-  { id: 'select', label: 'Município', icon: MousePointerClick, hint: 'Clique no mapa para analisar um município.' },
-  { id: 'rectangle', label: 'Retângulo', icon: Square, hint: 'Clique em dois cantos para desenhar o retângulo.' },
-  { id: 'polygon', label: 'Polígono', icon: Pentagon, hint: 'Clique para adicionar vértices; clique no primeiro ponto para fechar.' },
-  { id: 'circle', label: 'Raio', icon: Circle, hint: 'Clique no centro e arraste/clique para definir o raio.' },
-  { id: 'coords', label: 'Coordenadas', icon: Crosshair, hint: '' },
-]
+const gridQuery = (l: Layer) => ({ queryKey: ['grid', l.year, l.month], queryFn: () => api.grid(l.year, l.month) })
 
-export function MapPanel({ selection, layer, onRegion, onDraw, onPoint }: Props) {
+export function MapPanel({ selection, layer, pinned, relief, onRegion, onDraw, onPoint }: Props) {
   const el = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
-  const cellCanvas = useRef<HTMLCanvasElement>(null!)
-  cellCanvas.current ??= makeCellCanvas()
   const drawRef = useRef<TerraDraw | null>(null)
-  const toolRef = useRef<Tool>('select')
-  const cbs = useRef({ onRegion, onDraw })
-  cbs.current = { onRegion, onDraw }
   const [tool, setTool] = useState<Tool>('select')
   const [ready, setReady] = useState(false)
-  const monthly = useRef(false)
-  monthly.current = layer.month != null
-  const [coords, setCoords] = useState({ lat: '-9.0', lon: '-55.0', r: '50' })
+  const [split, setSplit] = useState(0.33)
+  const [hover, setHover] = useState<CellHover | null>(null)
 
-  const grid = useQuery({ queryKey: ['grid', layer.year, layer.month], queryFn: () => api.grid(layer.year, layer.month), placeholderData: keepPreviousData })
+  const grid = useQuery({ ...gridQuery(layer), placeholderData: keepPreviousData })
+  const pinnedGrid = useQuery({ ...gridQuery(pinned ?? layer), enabled: !!pinned })
   const outlines = useQuery({ queryKey: ['outlines'], queryFn: api.outlines, staleTime: Infinity })
+
+  const monthly = layer.month != null
+  const current = useMemo(() => grid.data && { cells: grid.data.cells, monthly }, [grid.data, monthly])
+  const pinnedMonthly = pinned?.month != null
+  const fixed = useMemo(
+    () => (pinned && !relief && pinnedGrid.data ? { cells: pinnedGrid.data.cells, monthly: pinnedMonthly } : undefined),
+    [pinned, relief, pinnedGrid.data, pinnedMonthly],
+  )
+  const cellCanvas = useCellLayer(mapRef, ready, current, fixed, split)
+
+  /** Focos por célula, para o cartão sob o cursor. */
+  const byCell = useMemo(() => new Map(grid.data?.cells.map((c) => [cellKey(c[0], c[1]), c])), [grid.data])
+
+  // o que os ouvintes do mapa (registrados uma vez) precisam ver sempre atual
+  const live = useRef({ tool, byCell, relief, onRegion, onDraw })
+  useEffect(() => {
+    live.current = { tool, byCell, relief, onRegion, onDraw }
+  })
 
   // ---- init ----
   useEffect(() => {
@@ -69,7 +82,11 @@ export function MapPanel({ selection, layer, onRegion, onDraw, onPoint }: Props)
       bounds: [[-74, -17], [-44, 5.5]],
       fitBoundsOptions: { padding: framing() },
       attributionControl: { compact: true },
+      // norte sempre para cima: o divisor da comparação corta numa longitude
+      dragRotate: false,
+      pitchWithRotate: false,
     })
+    map.touchZoomRotate.disableRotation()
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left')
     mapRef.current = map
 
@@ -79,11 +96,15 @@ export function MapPanel({ selection, layer, onRegion, onDraw, onPoint }: Props)
       // do mapa base ficam só os nomes de países e estados; cidades e rios disputam com os dados
       for (const l of symbols) if (!/country|state/.test(l.id)) map.setLayoutProperty(l.id, 'visibility', 'none')
       map.addSource('outlines', { type: 'geojson', data: EMPTY_FC })
-      map.addSource('cells', { type: 'canvas', canvas: cellCanvas.current, coordinates: CELL_COORDS, animate: false })
+      map.addSource('cells', { type: 'canvas', canvas: cellCanvas, coordinates: CELL_COORDS, animate: false })
+      map.addSource('columns', { type: 'geojson', data: EMPTY_FC, maxzoom: 6, tolerance: 0 })
       map.addSource('selection', { type: 'geojson', data: EMPTY_FC })
 
-      // vizinho mais próximo: os quadrados ficam com borda seca em qualquer zoom
-      map.addLayer({ id: 'cells', type: 'raster', source: 'cells', paint: { 'raster-resampling': 'nearest', 'raster-fade-duration': 0 } }, firstSymbol)
+      map.addLayer({ id: 'cells', type: 'raster', source: 'cells', paint: { 'raster-fade-duration': 0 } }, firstSymbol)
+      map.addLayer({
+        id: 'columns', type: 'fill-extrusion', source: 'columns', layout: { visibility: 'none' },
+        paint: { 'fill-extrusion-color': ['get', 'c'], 'fill-extrusion-height': ['get', 'h'], 'fill-extrusion-opacity': 0.92 },
+      }, firstSymbol)
       map.addLayer({
         id: 'states', type: 'line', source: 'outlines', filter: ['==', ['get', 'kind'], 'state'],
         paint: { 'line-color': INK.hi, 'line-opacity': 0.12, 'line-width': 0.8 },
@@ -103,26 +124,36 @@ export function MapPanel({ selection, layer, onRegion, onDraw, onPoint }: Props)
       draw.on('finish', (id) => {
         const f = draw.getSnapshot().find((x) => x.id === id)
         draw.clear()
-        if (f) cbs.current.onDraw(f.geometry as GeoJSON.Geometry)
+        if (f) live.current.onDraw(f.geometry as GeoJSON.Geometry)
       })
       drawRef.current = draw
       setReady(true)
     })
 
     map.on('click', async (e) => {
-      if (toolRef.current !== 'select') return
+      if (live.current.tool !== 'select') return
       try {
         const r = await api.regionAt(e.lngLat.lng, e.lngLat.lat)
-        cbs.current.onRegion(r.id)
+        live.current.onRegion(r.id)
       } catch {
         /* fora do bioma */
       }
     })
+
+    // cartão da célula: só com mouse, fora do relevo (a coluna desloca o ponto sob o cursor)
+    if (matchMedia('(hover: hover) and (pointer: fine)').matches) {
+      map.on('mousemove', (e) => {
+        const c = live.current.relief ? undefined : live.current.byCell.get(cellKey(e.lngLat.lng, e.lngLat.lat))
+        setHover(c ? { x: e.originalEvent.clientX, y: e.originalEvent.clientY, lon: c[0], lat: c[1], v: c[2] } : null)
+      })
+      map.on('mouseout', () => setHover(null))
+      map.on('movestart', () => setHover(null))
+    }
     return () => {
       drawRef.current?.stop()
       map.remove()
     }
-  }, [])
+  }, [cellCanvas])
 
   // ---- dados ----
   useEffect(() => {
@@ -130,15 +161,19 @@ export function MapPanel({ selection, layer, onRegion, onDraw, onPoint }: Props)
     ;(mapRef.current!.getSource('outlines') as maplibregl.GeoJSONSource).setData(outlines.data)
   }, [ready, outlines.data])
 
+  // relevo: troca a textura plana pelas colunas e inclina a câmera
   useEffect(() => {
-    if (!ready || !grid.data) return
+    if (!ready) return
     const map = mapRef.current!
-    drawCells(cellCanvas.current, grid.data.cells, monthly.current)
-    // fonte estática: play + pause força o reenvio da textura
-    const src = map.getSource('cells') as maplibregl.CanvasSource
-    src.play()
-    src.pause()
-  }, [ready, grid.data])
+    map.setLayoutProperty('cells', 'visibility', relief ? 'none' : 'visible')
+    map.setLayoutProperty('columns', 'visibility', relief ? 'visible' : 'none')
+    map.easeTo({ pitch: relief ? 55 : 0, duration: 700 })
+  }, [ready, relief])
+
+  useEffect(() => {
+    if (!ready || !relief || !current) return
+    ;(mapRef.current!.getSource('columns') as maplibregl.GeoJSONSource).setData(cellColumns(current.cells, current.monthly))
+  }, [ready, relief, current])
 
   useEffect(() => {
     if (!ready) return
@@ -152,46 +187,19 @@ export function MapPanel({ selection, layer, onRegion, onDraw, onPoint }: Props)
 
   const pick = (t: Tool) => {
     setTool(t)
-    toolRef.current = t
     const draw = drawRef.current
     if (!draw) return
     draw.setMode(t === 'rectangle' || t === 'polygon' || t === 'circle' ? t : 'static')
     mapRef.current!.getCanvas().style.cursor = t === 'select' ? 'pointer' : ''
   }
 
-  const hint = TOOLS.find((t) => t.id === tool)?.hint
-
   return (
     <div className="map-wrap">
       {!ready && <div className="loading-bar" />}
       <div ref={el} className="map-canvas" />
-
-      <div className="widget tools" role="toolbar" aria-label="Selecionar área">
-        {TOOLS.map((t) => (
-          <button key={t.id} className="tool" data-active={tool === t.id} onClick={() => pick(t.id)} title={t.label}>
-            <t.icon size={15} />
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {tool === 'coords' ? (
-        <form
-          className="widget coord-form"
-          onSubmit={(e) => {
-            e.preventDefault()
-            onPoint(Number(coords.lat), Number(coords.lon), Number(coords.r))
-          }}
-        >
-          <label>Latitude<input value={coords.lat} onChange={(e) => setCoords({ ...coords, lat: e.target.value })} inputMode="decimal" /></label>
-          <label>Longitude<input value={coords.lon} onChange={(e) => setCoords({ ...coords, lon: e.target.value })} inputMode="decimal" /></label>
-          <label>Raio (km)<input value={coords.r} onChange={(e) => setCoords({ ...coords, r: e.target.value })} inputMode="decimal" /></label>
-          <button className="btn btn-primary" type="submit">Analisar</button>
-        </form>
-      ) : (
-        hint && <p className="widget hint">{hint}</p>
-      )}
-
+      <MapTools tool={tool} onPick={pick} onPoint={onPoint} />
+      {fixed && pinned && <MapCompare split={split} setSplit={setSplit} left={periodLabel(pinned)} right={periodLabel(layer)} />}
+      {hover && <CellCard hover={hover} period={periodLabel(layer)} />}
     </div>
   )
 }

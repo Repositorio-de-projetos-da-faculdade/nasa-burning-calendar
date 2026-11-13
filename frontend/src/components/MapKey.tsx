@@ -1,11 +1,11 @@
 import { HEAT } from '../lib/scales'
 
-/** Legenda do mapa: quadrados maiores e mais claros indicam mais focos por célula. */
+/** Legenda do mapa: da brasa ao amarelo, mais focos por célula. */
 export function MapKey() {
   return (
-    <div className="map-key" aria-label="Legenda do mapa: quadrados maiores e mais claros indicam mais focos por célula de 11 km">
+    <div className="map-key" aria-label="Legenda do mapa: cores mais claras indicam mais focos por célula de 11 km">
       <span>menos</span>
-      {HEAT.map((c, i) => <i key={c} style={{ width: 2 + i * 2, height: 2 + i * 2, background: c }} />)}
+      <span className="map-key-ramp">{HEAT.map((c) => <i key={c} style={{ background: c }} />)}</span>
       <span>mais focos por célula de 11 km</span>
     </div>
   )

@@ -1,6 +1,6 @@
 import type { UseQueryResult } from '@tanstack/react-query'
 import { PanelRightClose, PanelRightOpen } from 'lucide-react'
-import { useState } from 'react'
+import { memo, useCallback, useState } from 'react'
 import type { AreaQuery, CalendarData, ValidationData } from '../lib/api'
 import { missingMonths } from '../lib/coverage'
 import { fmt, fmtDate, fmtPct } from '../lib/format'
@@ -40,6 +40,10 @@ interface Props {
 export function Dossier({ cal, validation, query, mode, setMode, layer, setLayer, open, setOpen }: Props) {
   // a aba inicial pode vir do link (#calendario, #anos, #metodo)
   const [tab, setTab] = useState<Tab>(() => TABS.find((t) => `#${t.id}` === location.hash)?.id ?? 'resumo')
+  const pickTab = (t: Tab) => {
+    setTab(t)
+    history.replaceState(null, '', `${location.pathname}${location.search}#${t}`)
+  }
   const d = cal.data
   const Icon = open ? PanelRightClose : PanelRightOpen
   const slug = ('region' in query ? query.region : 'area').replace(/[^a-z0-9-]/gi, '_')
@@ -64,7 +68,7 @@ export function Dossier({ cal, validation, query, mode, setMode, layer, setLayer
           </div>
           <div className="tabs" role="tablist" aria-label="Análise da área">
             {TABS.map((t) => (
-              <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}>{t.label}</button>
+              <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => pickTab(t.id)}>{t.label}</button>
             ))}
           </div>
         </div>
@@ -88,7 +92,7 @@ export function Dossier({ cal, validation, query, mode, setMode, layer, setLayer
   )
 }
 
-function Resumo({ d }: { d: CalendarData }) {
+const Resumo = memo(function Resumo({ d }: { d: CalendarData }) {
   return (
     <>
       <Kpis data={d} />
@@ -102,12 +106,12 @@ function Resumo({ d }: { d: CalendarData }) {
       </section>
     </>
   )
-}
+})
 
 type Period = Pick<Props, 'layer' | 'setLayer'> & { d: CalendarData }
 
 function Calendario({ d, mode, setMode, layer, setLayer }: Period & Pick<Props, 'mode' | 'setMode'>) {
-  const selected = layer.year != null && layer.month != null ? { year: layer.year, month: layer.month } : null
+  const onSelect = useCallback((year: number, month: number) => setLayer({ year, month }), [setLayer])
   return (
     <section className="widget">
       <div className="w-head">
@@ -121,7 +125,10 @@ function Calendario({ d, mode, setMode, layer, setLayer }: Period & Pick<Props, 
         Cada quadrado é um mês; quanto maior, mais focos. VIIRS medido desde 2012, MODIS convertido para a mesma escala
         antes disso. Um clique leva o mapa para aquele mês.
       </p>
-      <FireCalendar data={d} mode={mode} selected={selected} onSelect={(year, month) => setLayer({ year, month })} />
+      {layer.year != null && layer.month != null && (
+        <style>{`.cal-c[data-k="${layer.year}-${layer.month}"]::after { outline: 2px solid var(--text-primary); outline-offset: 2px; }`}</style>
+      )}
+      <FireCalendar data={d} mode={mode} onSelect={onSelect} />
     </section>
   )
 }

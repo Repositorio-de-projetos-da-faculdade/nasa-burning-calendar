@@ -47,7 +47,7 @@ export const FireCalendar = memo(function FireCalendar({ data, mode, onSelect }:
           {MONTHS_LONG[c.month - 1]} de {c.year}
           {c.partial && ' (parcial)'}
         </span>
-        <span style={{ color: c.source === 'VIIRS' ? SERIES.viirs : SERIES.modis }}>{c.source}</span>
+        <span>{c.source}</span>
       </div>
       <div className="tip-big num">{fmt(c.harmonized)} focos</div>
       <div className="tip-row">
@@ -67,7 +67,6 @@ export const FireCalendar = memo(function FireCalendar({ data, mode, onSelect }:
     return (
       <Fragment key={y}>
         <div className="cal-y num" data-hover={hover?.year === y}>
-          <span className="src" style={{ background: y >= 2012 ? SERIES.viirs : SERIES.modis }} />
           {y}
         </div>
         {MONTHS.map((_, i) => {
@@ -166,12 +165,6 @@ export const FireCalendar = memo(function FireCalendar({ data, mode, onSelect }:
           ))}
         </div>
         <div className="legend-keys">
-          <span className="legend-key">
-            <i className="sw-line" style={{ background: SERIES.viirs }} /> VIIRS
-          </span>
-          <span className="legend-key">
-            <i className="sw-line" style={{ background: SERIES.modis }} /> MODIS convertido
-          </span>
           <span className="legend-key">
             <i className="cal-c" data-partial="true" style={markStyle({ size: 0.5, color: SERIES.accent })} /> mês em andamento
           </span>

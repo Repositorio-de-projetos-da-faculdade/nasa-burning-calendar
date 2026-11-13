@@ -75,6 +75,16 @@ export default function App() {
     setLayerRaw({ year: d.summary.record_month.year, month: d.summary.record_month.month })
   }, [d])
 
+  // vizinhos do período já em cache: arrastar ou andar pelas setas não espera a rede
+  useEffect(() => {
+    const { year, month } = layer
+    if (year == null) return
+    const near: Layer[] = month == null
+      ? [{ year: year - 1, month }, { year: year + 1, month }]
+      : [{ year: month === 1 ? year - 1 : year, month: month === 1 ? 12 : month - 1 }, { year: month === 12 ? year + 1 : year, month: month === 12 ? 1 : month + 1 }]
+    for (const n of near) void qc.prefetchQuery({ queryKey: ['grid', n.year, n.month], queryFn: () => api.grid(n.year, n.month) })
+  }, [layer, qc])
+
   // timelapse: um mês (ou um ano) por passo, em laço
   const step = useRef(() => {})
   step.current = () => {

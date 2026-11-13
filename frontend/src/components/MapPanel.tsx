@@ -78,7 +78,8 @@ export function MapPanel({ selection, layer, onRegion, onDraw, onPoint }: Props)
       // do mapa base ficam só os nomes de países e estados; cidades e rios disputam com os dados
       for (const l of symbols) if (!/country|state/.test(l.id)) map.setLayoutProperty(l.id, 'visibility', 'none')
       map.addSource('outlines', { type: 'geojson', data: EMPTY_FC })
-      map.addSource('cells', { type: 'geojson', data: EMPTY_FC })
+      // trocar o período refaz esta fonte inteira: sem simplificação e com poucos níveis de zoom o reprocessamento é curto
+      map.addSource('cells', { type: 'geojson', data: EMPTY_FC, maxzoom: 6, tolerance: 0, buffer: 8 })
       map.addSource('selection', { type: 'geojson', data: EMPTY_FC })
 
       map.addLayer({ id: 'cells', type: 'fill', source: 'cells', paint: { 'fill-color': ['get', 'c'], 'fill-antialias': false } }, firstSymbol)

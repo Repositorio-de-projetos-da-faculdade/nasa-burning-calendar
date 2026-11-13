@@ -95,6 +95,9 @@ const post = <T,>(path: string, body: unknown) =>
   )
 const get = <T,>(path: string) => fetch(path).then((r) => json<T>(r))
 
+/** Versão dos dados no servidor. Vai na URL do mapa: com a mesma versão o navegador usa a cópia local, com outra baixa de novo. */
+const version = get<{ version: string }>('/api/version').then((v) => v.version, () => '')
+
 export const api = {
   regions: () => get<Region[]>('/api/regions'),
   outlines: () => get<GeoJSON.FeatureCollection>('/api/regions/outlines'),
@@ -102,7 +105,7 @@ export const api = {
   regionAt: (lon: number, lat: number) => get<Region>(`/api/regions/at?lon=${lon}&lat=${lat}`),
   calendar: (q: AreaQuery) => post<CalendarData>('/api/calendar', q),
   grid: async (year: number | null, month: number | null): Promise<GridData> => {
-    const d = await get<Omit<GridData, 'cells'> & { cells: number[][] }>(`/api/grid?${year ? `year=${year}` : ''}${month ? `&month=${month}` : ''}`)
+    const d = await get<Omit<GridData, 'cells'> & { cells: number[][] }>(`/api/grid?v=${await version}${year ? `&year=${year}` : ''}${month ? `&month=${month}` : ''}`)
     return { ...d, cells: Float32Array.from(d.cells.flat()) }
   },
   validation: () => get<ValidationData>('/api/validation'),

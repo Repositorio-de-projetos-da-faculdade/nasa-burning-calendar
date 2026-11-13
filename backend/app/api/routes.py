@@ -6,7 +6,7 @@ from collections.abc import Iterator
 from datetime import date
 
 import numpy as np
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -90,11 +90,26 @@ def calendar(q: AreaQuery):
     return analytics.calendar_cache.get_or((q.cache_key(), analytics.stamp()), compute)
 
 
+@router.get("/version")
+def version():
+    """Versao dos dados processados; muda quando o pipeline roda de novo."""
+    return {"version": str(analytics.stamp())}
+
+
 @router.get("/grid")
-def grid(year: int | None = Query(None), month: int | None = Query(None, ge=1, le=12)):
+def grid(
+    response: Response,
+    year: int | None = Query(None),
+    month: int | None = Query(None, ge=1, le=12),
+    v: str | None = Query(None),
+):
     """Focos harmonizados por celula (camada do mapa). Sem ano: media anual."""
     _require("monthly_cells")
-    return analytics.grid(analytics.stamp(), year, month)
+    stamp = analytics.stamp()
+    # pedido com a versao atual na URL: o navegador pode guardar para sempre, dados novos trocam a URL
+    if v == str(stamp):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return analytics.grid(stamp, year, month)
 
 
 # ---------- CSV ----------

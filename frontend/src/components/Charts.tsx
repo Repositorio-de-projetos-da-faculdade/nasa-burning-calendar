@@ -1,6 +1,7 @@
 import type { EChartsOption } from 'echarts'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { CalendarData, ValidationData } from '../lib/api'
+import { missingMonths } from '../lib/coverage'
 import { fmt, MONTHS } from '../lib/format'
 import { heat, INK, SERIES } from '../lib/scales'
 import { axisStyle, baseOption, EChart } from './EChart'
@@ -19,11 +20,14 @@ const tipRows = (params: TipParam[], skip: string[] = []) =>
 
 /** Ano atual vs. faixa historica, mes a mes. */
 export function SeasonChart({ data }: { data: CalendarData }) {
+  // o recorde estica a escala e achata o ano corrente: fica fora até pedirem
+  const [showPeak, setShowPeak] = useState(false)
   const option = useMemo<EChartsOption>(() => {
     const cur = data.current.year
     const peak = data.summary.peak_year
     const byYM = new Map(data.series.map((c) => [`${c.year}-${c.month}`, c.harmonized]))
-    const line = (y: number) => MONTHS.map((_, i) => byYM.get(`${y}-${i + 1}`) ?? null)
+    const gap = missingMonths(data)
+    const line = (y: number) => MONTHS.map((_, i) => (y === cur && gap.includes(i + 1) ? null : (byYM.get(`${y}-${i + 1}`) ?? null)))
     const p25 = data.climatology.map((c) => c.p25)
     const iqr = data.climatology.map((c) => c.p75 - c.p25)
     return {
@@ -46,7 +50,7 @@ export function SeasonChart({ data }: { data: CalendarData }) {
           data: data.climatology.map((c) => c.median), lineStyle: { color: INK.text, width: 2, type: 'dashed' },
           itemStyle: { color: INK.text },
         },
-        ...(peak && peak !== cur
+        ...(showPeak && peak && peak !== cur
           ? [{
               name: `${peak} (ano recorde)`, type: 'line' as const, symbol: 'none', data: line(peak),
               lineStyle: { color: INK.hi, width: 1 }, itemStyle: { color: INK.hi },
@@ -60,14 +64,18 @@ export function SeasonChart({ data }: { data: CalendarData }) {
         },
       ],
     }
-  }, [data])
+  }, [data, showPeak])
 
   const peak = data.summary.peak_year
   return (
     <div>
       <div className="chart-legend">
         <span><i style={{ background: SERIES.accent }} />{data.current.year}</span>
-        {peak && peak !== data.current.year && <span><i style={{ background: INK.hi }} />{peak} (recorde)</span>}
+        {peak && peak !== data.current.year && (
+          <button className="legend-toggle" aria-pressed={showPeak} onClick={() => setShowPeak(!showPeak)}>
+            <i style={{ background: INK.hi }} />{peak} (recorde)
+          </button>
+        )}
         <span style={{ color: INK.text }}><i className="dash" style={{ background: INK.text }} />mediana</span>
         <span><i className="band" style={{ background: INK.text }} />faixa típica</span>
       </div>
@@ -76,12 +84,13 @@ export function SeasonChart({ data }: { data: CalendarData }) {
   )
 }
 
-/** Total anual harmonizado; anos MODIS com textura, ano corrente parcial. */
+/** Total anual harmonizado; faixa sobre os anos MODIS, ano corrente parcial. */
 export function AnnualChart({ data, onPick }: { data: CalendarData; onPick: (y: number) => void }) {
-  const option = useMemo<EChartsOption>(() => {
+  const { med, option } = useMemo(() => {
     const complete = data.annual.filter((a) => !a.partial && a.year >= data.baseline[0]).map((a) => a.total).sort((a, b) => a - b)
     const med = complete.length ? complete[Math.floor(complete.length / 2)] : 0
-    return {
+    const converted = data.annual.filter((a) => a.converted).map((a) => String(a.year))
+    const option: EChartsOption = {
       ...baseOption,
       grid: { left: 52, right: 12, top: 16, bottom: 28 },
       tooltip: {
@@ -108,23 +117,32 @@ export function AnnualChart({ data, onPick }: { data: CalendarData; onPick: (y: 
             color: heat(a.total / Math.max(1, ...data.annual.map((x) => x.total))),
             opacity: a.partial ? 0.45 : 1,
             borderRadius: [2, 2, 0, 0],
-            decal: a.converted
-              ? { symbol: 'rect', dashArrayX: [1, 0], dashArrayY: [2, 4], rotation: Math.PI / 4, color: 'rgba(0,0,0,0.45)' }
-              : undefined,
           },
         })),
         markLine: {
           silent: true, symbol: 'none',
           lineStyle: { color: INK.text, type: 'dashed' },
-          label: { formatter: `mediana ${fmt(med)}`, color: INK.text, fontSize: 11, position: 'insideEndTop' },
+          label: { show: false },
           data: [{ yAxis: med }],
+        },
+        markArea: {
+          silent: true, itemStyle: { color: 'rgba(255,255,255,0.04)' },
+          label: { show: false },
+          data: converted.length ? [[{ xAxis: converted[0] }, { xAxis: converted[converted.length - 1] }]] : [],
         },
       }],
     }
+    return { med, option }
   }, [data])
 
   return (
-    <EChart option={option} height={240} onClick={(i) => onPick(data.annual[i].year)} />
+    <div>
+      <div className="chart-legend">
+        <span style={{ color: INK.text }}><i className="dash" style={{ background: INK.text }} />mediana {fmt(med)}</span>
+        <span><i className="band" style={{ background: INK.text }} />anos MODIS convertidos</span>
+      </div>
+      <EChart option={option} height={240} onClick={(i) => onPick(data.annual[i].year)} />
+    </div>
   )
 }
 

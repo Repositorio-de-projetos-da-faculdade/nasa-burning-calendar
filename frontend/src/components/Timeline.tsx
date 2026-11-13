@@ -1,8 +1,8 @@
 import { Pause, Play } from 'lucide-react'
-import { type KeyboardEvent, type PointerEvent, useMemo } from 'react'
+import { type KeyboardEvent, type PointerEvent, useMemo, useState } from 'react'
 import type { CalendarData } from '../lib/api'
-import { MONTHS_LONG } from '../lib/format'
-import { HEAT, heat } from '../lib/scales'
+import { fmt, MONTHS, MONTHS_LONG } from '../lib/format'
+import { heat } from '../lib/scales'
 import type { Layer } from './MapPanel'
 
 interface Props {
@@ -21,14 +21,17 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying }: Props) {
   const y0 = d.years[0]
   const nYears = d.years.length
 
-  const bars = useMemo(() => {
+  const [hover, setHover] = useState<number | null>(null)
+
+  const { bars, byKey } = useMemo(() => {
     const byKey = new Map(d.series.map((c) => [(c.year - y0) * 12 + c.month - 1, c.harmonized]))
     const vals = [...byKey.values()].filter((v) => v > 0).sort((a, b) => a - b)
     const top = vals.length ? vals[Math.floor(vals.length * 0.98)] : 1
-    return Array.from({ length: nYears * 12 }, (_, i) => {
+    const bars = Array.from({ length: nYears * 12 }, (_, i) => {
       const v = byKey.get(i)
       return v == null ? 0 : Math.max(4, Math.min(100, Math.sqrt(v / top) * 100))
     })
+    return { bars, byKey }
   }, [d, y0, nYears])
 
   const byYear = layer.year != null && layer.month == null
@@ -40,10 +43,10 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying }: Props) {
     setLayer({ year, month: byYear ? null : (i % 12) + 1 })
   }
 
-  const fromPointer = (e: PointerEvent<HTMLDivElement>) => {
+  const indexAt = (e: PointerEvent<HTMLDivElement>) => {
     const box = e.currentTarget.getBoundingClientRect()
     const t = Math.min(0.9999, Math.max(0, (e.clientX - box.left) / box.width))
-    pick(Math.floor(t * bars.length))
+    return Math.floor(t * bars.length)
   }
 
   const onKey = (e: KeyboardEvent) => {
@@ -68,11 +71,12 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying }: Props) {
           <button data-active={byYear} onClick={() => setLayer({ year: layer.year ?? lastFull, month: null })}>Ano</button>
           <button data-active={layer.year == null} onClick={() => setLayer({ year: null, month: null })}>Média</button>
         </div>
-        <div className="map-key" aria-label="Legenda do mapa: quadrados maiores indicam mais focos por célula de 11 km">
-          <span>menos</span>
-          {HEAT.map((c, i) => <i key={c} style={{ width: 2 + i * 2, height: 2 + i * 2, background: c }} />)}
-          <span>mais focos por célula de 11 km</span>
-        </div>
+        {/* o mês sob o cursor, antes de clicar */}
+        <p className="tl-read num" aria-hidden="true">
+          {hover != null && byKey.has(hover) && (
+            <>{MONTHS[hover % 12]} {y0 + Math.floor(hover / 12)} <b>{fmt(byKey.get(hover)!)}</b> focos</>
+          )}
+        </p>
       </div>
 
       <div
@@ -86,9 +90,14 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying }: Props) {
         aria-valuetext={now}
         onPointerDown={(e) => {
           e.currentTarget.setPointerCapture(e.pointerId)
-          fromPointer(e)
+          pick(indexAt(e))
         }}
-        onPointerMove={(e) => e.buttons === 1 && fromPointer(e)}
+        onPointerMove={(e) => {
+          const i = indexAt(e)
+          setHover(i)
+          if (e.buttons === 1) pick(i)
+        }}
+        onPointerLeave={() => setHover(null)}
         onKeyDown={onKey}
       >
         {bars.map((h, i) => (

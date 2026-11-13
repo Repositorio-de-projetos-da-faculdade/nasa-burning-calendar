@@ -19,7 +19,7 @@ const MONTH_BREAKS = [2, 4, 8, 15, 30, 60, 120, 240, 480]
 /** Espaco reservado ao que fica por cima do mapa (painel a direita, linha do tempo embaixo). */
 const framing = () =>
   innerWidth > 900
-    ? { top: 130, bottom: 210, left: 48, right: (document.getElementById('dossier')?.offsetWidth ?? 520) + 48 }
+    ? { top: 130, bottom: 270, left: 48, right: (document.getElementById('dossier')?.offsetWidth ?? 520) + 48 }
     : { top: 110, bottom: 250, left: 16, right: 16 }
 
 type Tool = 'select' | 'rectangle' | 'polygon' | 'circle' | 'coords'
@@ -73,7 +73,10 @@ export function MapPanel({ selection, layer, onRegion, onDraw, onPoint }: Props)
     mapRef.current = map
 
     map.once('load', () => {
-      const firstSymbol = map.getStyle().layers?.find((l) => l.type === 'symbol')?.id
+      const symbols = map.getStyle().layers?.filter((l) => l.type === 'symbol') ?? []
+      const firstSymbol = symbols[0]?.id
+      // do mapa base ficam só os nomes de países e estados; cidades e rios disputam com os dados
+      for (const l of symbols) if (!/country|state/.test(l.id)) map.setLayoutProperty(l.id, 'visibility', 'none')
       map.addSource('outlines', { type: 'geojson', data: EMPTY_FC })
       map.addSource('cells', { type: 'geojson', data: EMPTY_FC })
       map.addSource('selection', { type: 'geojson', data: EMPTY_FC })
@@ -196,7 +199,7 @@ export function MapPanel({ selection, layer, onRegion, onDraw, onPoint }: Props)
           <button className="btn btn-primary" type="submit">Analisar</button>
         </form>
       ) : (
-        hint && <p className="hint">{hint}</p>
+        hint && <p className="widget hint">{hint}</p>
       )}
 
     </div>

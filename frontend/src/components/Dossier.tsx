@@ -2,6 +2,7 @@ import type { UseQueryResult } from '@tanstack/react-query'
 import { PanelRightClose, PanelRightOpen } from 'lucide-react'
 import { useState } from 'react'
 import type { AreaQuery, CalendarData, ValidationData } from '../lib/api'
+import { missingMonths } from '../lib/coverage'
 import { fmt, fmtDate, fmtPct } from '../lib/format'
 import { AnnualChart, SeasonChart } from './Charts'
 import { ExportMenu } from './ExportMenu'
@@ -76,7 +77,7 @@ export function Dossier({ cal, validation, query, mode, setMode, layer, setLayer
           {d && tab === 'calendario' && <Calendario d={d} mode={mode} setMode={setMode} layer={layer} setLayer={setLayer} />}
           {d && tab === 'anos' && <Anos d={d} layer={layer} setLayer={setLayer} />}
           {tab === 'metodo' && validation && <MethodSection v={validation} />}
-          <p className="footnote">
+          <p className="widget footnote">
             Fonte: NASA FIRMS (MODIS C6.1 e VIIRS 375 m, Standard Processing + NRT). Limites: INPE/TerraBrasilis
             (PRODES). Focos de calor indicam fogo ativo no momento da passagem do satélite; nuvens e fumaça densa podem
             ocultar detecções.
@@ -95,7 +96,7 @@ function Resumo({ d }: { d: CalendarData }) {
         <h2 className="w-title">{d.current.year} contra o histórico</h2>
         <p className="w-desc">
           Comparado à mediana e à faixa típica de {d.baseline[0]} a {d.baseline[1]}.
-          {d.ytd.anomaly_pct != null && <> Acumulado no ano: <b className="num">{fmtPct(d.ytd.anomaly_pct)}</b>.</>}
+          {d.ytd.anomaly_pct != null && !missingMonths(d).length && <> Acumulado no ano: <b className="num">{fmtPct(d.ytd.anomaly_pct)}</b>.</>}
         </p>
         <SeasonChart data={d} />
       </section>
@@ -131,7 +132,7 @@ function Anos({ d, layer, setLayer }: Period) {
     <>
       <section className="widget">
         <h2 className="w-title">Os anos que mais queimaram</h2>
-        <p className="w-desc">Total anual harmonizado; hachurados são os anos MODIS convertidos. Um clique mostra o ano no mapa.</p>
+        <p className="w-desc">Total anual harmonizado; a faixa marca os anos MODIS convertidos. Um clique mostra o ano no mapa.</p>
         <AnnualChart data={d} onPick={pick} />
       </section>
       <section className="widget">

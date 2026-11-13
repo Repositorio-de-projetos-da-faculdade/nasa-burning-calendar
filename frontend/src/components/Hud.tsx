@@ -2,6 +2,7 @@ import type { CalendarData } from '../lib/api'
 import { fmt, MONTHS_LONG } from '../lib/format'
 import { Badge } from './Badge'
 import { CountUp } from './CountUp'
+import { MapKey } from './MapKey'
 import type { Layer } from './MapPanel'
 
 interface Readout {
@@ -42,6 +43,7 @@ export function Hud({ d, layer }: { d: CalendarData; layer: Layer }) {
   const r = readout(d, layer)
   return (
     <div className="widget hud">
+      <p className="eyebrow">No mapa</p>
       <h1 className="hud-area">{d.area.name}</h1>
       <p className="hud-when">{r.when}</p>
       <p className="hud-value num">{r.value == null ? '—' : <CountUp value={r.value} />}</p>
@@ -49,6 +51,7 @@ export function Hud({ d, layer }: { d: CalendarData; layer: Layer }) {
         {r.pct !== undefined && <Badge pct={r.pct} />}
         <span>{r.note}</span>
       </p>
+      <MapKey />
     </div>
   )
 }

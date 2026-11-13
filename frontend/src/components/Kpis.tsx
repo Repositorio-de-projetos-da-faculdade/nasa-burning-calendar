@@ -1,4 +1,5 @@
 import type { CalendarData } from '../lib/api'
+import { missingMonths } from '../lib/coverage'
 import { fmt, monthRange, MONTHS, MONTHS_LONG, ordinal } from '../lib/format'
 import { Badge } from './Badge'
 import { SeasonDial } from './SeasonDial'
@@ -19,11 +20,13 @@ export function Kpis({ data }: { data: CalendarData }) {
   const { current: c, ytd, summary: s } = data
   const partial = data.series.some((m) => m.partial)
   const month = MONTHS_LONG[c.month - 1]
+  const gap = missingMonths(data)
   return (
     <>
       <section className="widget">
         <div className="now-row">
           <div>
+            <p className="eyebrow">Agora</p>
             <h2 className="w-label">
               {month[0].toUpperCase() + month.slice(1)} de {c.year}
               {partial ? `, até o dia ${c.day}` : ', último mês'}
@@ -43,8 +46,14 @@ export function Kpis({ data }: { data: CalendarData }) {
           <h2 className="w-label">Acumulado em {ytd.year}</h2>
           <p className="w-value num">{fmt(ytd.value)}</p>
           <p className="w-foot">
-            <Badge pct={ytd.anomaly_pct} />
-            {ordinal(ytd.rank)} maior de {ytd.of} anos{partial ? ' até esta data' : ''}
+            {gap.length ? (
+              <>Sem dados de {monthRange(gap).toLowerCase()} de {ytd.year}; o total não é comparável com outros anos</>
+            ) : (
+              <>
+                <Badge pct={ytd.anomaly_pct} />
+                {ordinal(ytd.rank)} maior de {ytd.of} anos{partial ? ' até esta data' : ''}
+              </>
+            )}
           </p>
         </section>
         <section>

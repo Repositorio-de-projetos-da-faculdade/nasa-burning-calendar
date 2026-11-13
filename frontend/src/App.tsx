@@ -1,23 +1,19 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { Flame } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
-import { AnnualChart, SeasonChart, ValidationChart } from './components/Charts'
-import { ExportMenu } from './components/ExportMenu'
+import { AreaHero } from './components/AreaHero'
+import { AnnualChart, SeasonChart } from './components/Charts'
 import { type CalMode, FireCalendar } from './components/FireCalendar'
+import { Header } from './components/Header'
 import { Kpis } from './components/Kpis'
 import { type Layer, MapPanel } from './components/MapPanel'
-import { RegionPicker } from './components/RegionPicker'
+import { MethodSection } from './components/MethodSection'
 import { api, type AreaQuery, type CalendarData } from './lib/api'
-import { fmt, fmtDate, fmtPct } from './lib/format'
+import { fmtPct } from './lib/format'
 
 type Area =
   | { kind: 'region'; id: string }
   | { kind: 'drawn'; geometry: GeoJSON.Geometry }
   | { kind: 'point'; lat: number; lon: number; r: number }
-
-const KIND_LABEL: Record<string, string> = {
-  biome: 'Bioma', state: 'Estado', municipality: 'Município', drawn: 'Área desenhada', point: 'Raio', bbox: 'Retângulo',
-}
 
 function toQuery(a: Area): AreaQuery {
   if (a.kind === 'region') return { region: a.id }
@@ -66,22 +62,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <header className="header">
-        <div className="brand">
-          <div className="brand-mark"><Flame size={18} color="#1a0d05" strokeWidth={2.5} /></div>
-          <div className="brand-name">FireCal <span>Amazônia</span></div>
-        </div>
-        <RegionPicker regions={regions.data ?? []} value={area.kind === 'region' ? area.id : ''} onChange={onRegion} />
-        <div className="header-meta">
-          {d && (
-            <span className="pill">
-              <span className="live-dot" />
-              Dados até {fmtDate(d.data_until)}
-            </span>
-          )}
-          <span>NASA FIRMS · MODIS Aqua + VIIRS S-NPP</span>
-        </div>
-      </header>
+      <Header regions={regions.data ?? []} value={area.kind === 'region' ? area.id : ''} onRegion={onRegion} dataUntil={d?.data_until} />
 
       <div className="main">
         <MapPanel
@@ -94,7 +75,7 @@ export default function App() {
           onPoint={onPoint}
         />
 
-        <main className="analytics" style={{ position: 'relative' }}>
+        <main className="analytics">
           {cal.isFetching && <div className="loading-bar" />}
           <div className="analytics-inner">
             {cal.isError && <div className="error-box">Não foi possível calcular esta área: {cal.error.message}</div>}
@@ -135,30 +116,17 @@ function Dashboard({ d, query, mode, setMode, selected, onCell, onYear }: {
   onCell: (y: number, m: number) => void
   onYear: (y: number) => void
 }) {
-  const slug = ('region' in query ? query.region : 'area').replace(/[^a-z0-9-]/gi, '_')
-  const until = d.data_until
-  const start = `${until.slice(0, 4)}-01-01`
+  const span = `${d.years[0]}–${d.years[d.years.length - 1]}`
   return (
     <>
-      <div className="area-head">
-        <div>
-          <div className="eyebrow">Calendário de queimadas</div>
-          <h1 className="area-title">{d.area.name}</h1>
-          <div className="area-sub num">
-            {KIND_LABEL[d.area.kind] ?? d.area.kind}
-            {d.area.uf && d.area.kind === 'municipality' ? ` · ${d.area.uf}` : ''} · {fmt(d.area.area_km2)} km² ·{' '}
-            {d.years[0]}–{d.years[d.years.length - 1]} · {fmt(d.summary.total)} focos harmonizados
-          </div>
-        </div>
-        <ExportMenu area={query} slug={slug} defaultRange={{ start, end: until }} />
-      </div>
-
+      <AreaHero d={d} query={query} />
       <Kpis data={d} />
 
       <section className="section">
         <div className="section-head">
           <div>
-            <h2 className="section-title">Quando queima: focos por mês, {d.years[0]}–{d.years[d.years.length - 1]}</h2>
+            <div className="eyebrow">Calendário</div>
+            <h2 className="section-title">Quando queima: focos por mês, {span}</h2>
             <p className="section-desc">
               Cada célula é um mês. Uma única série consistente: VIIRS medido desde 2012 e MODIS convertido para a mesma
               escala antes disso. Clique em um mês para vê-lo no mapa.
@@ -176,6 +144,7 @@ function Dashboard({ d, query, mode, setMode, selected, onCell, onYear }: {
         <section className="section">
           <div className="section-head">
             <div>
+              <div className="eyebrow">Ano corrente</div>
               <h2 className="section-title">{d.current.year} contra o histórico</h2>
               <p className="section-desc">
                 Mês a mês, comparado à mediana e à faixa típica de {d.baseline[0]}–{d.baseline[1]}.
@@ -188,6 +157,7 @@ function Dashboard({ d, query, mode, setMode, selected, onCell, onYear }: {
         <section className="section">
           <div className="section-head">
             <div>
+              <div className="eyebrow">Ranking</div>
               <h2 className="section-title">Quais anos queimaram mais</h2>
               <p className="section-desc">Total anual harmonizado. Hachurado: anos MODIS convertidos. Clique para ver o ano no mapa.</p>
             </div>
@@ -199,51 +169,12 @@ function Dashboard({ d, query, mode, setMode, selected, onCell, onYear }: {
   )
 }
 
-function MethodSection({ v }: { v: import('./lib/api').ValidationData }) {
-  const m = v.metrics
-  return (
-    <section className="section">
-      <div className="section-head">
-        <div>
-          <div className="eyebrow">Metodologia</div>
-          <h2 className="section-title">Como MODIS e VIIRS viram uma série só</h2>
-          <p className="section-desc">
-            O VIIRS enxerga pixels de 375 m e detecta cerca de {m.ratio_viirs_modis?.toLocaleString('pt-BR')}× mais focos que o
-            MODIS (1 km) no mesmo fogo. Sem harmonização, a série teria um salto falso em 2012.
-          </p>
-        </div>
-      </div>
-      <div className="steps">
-        {[
-          ['Filtrar', 'Só focos de vegetação com confiança nominal ou alta; fontes industriais e vulcânicas fora.'],
-          ['Alinhar', 'Um satélite por sensor com o mesmo horário de passagem (~13h30): Aqua e S-NPP.'],
-          ['Calibrar', `Fator VIIRS/MODIS por bloco de 2° e mês do ano, ajustado em ${v.calibration_years[0]}–${v.calibration_years[1]}.`],
-          ['Converter', 'MODIS 2002–2011 × fator = focos equivalentes VIIRS. Daí em diante, VIIRS medido.'],
-        ].map(([t, p], i) => (
-          <div className="step" key={t}>
-            <span className="step-n">0{i + 1}</span>
-            <b>{t}</b>
-            <p>{p}</p>
-          </div>
-        ))}
-      </div>
-      <ValidationChart data={v} />
-      <div className="metrics">
-        <div className="metric"><span>Correlação mensal</span><b className="num">{m.corr_harmonized?.toFixed(2) ?? '—'}</b></div>
-        <div className="metric"><span>Correlação fora da amostra</span><b className="num">{m.corr_out_of_sample?.toFixed(2) ?? '—'}</b></div>
-        <div className="metric"><span>Viés MODIS bruto</span><b className="num">{fmtPct(m.bias_raw_pct)}</b></div>
-        <div className="metric"><span>Viés após harmonizar</span><b className="num" style={{ color: 'var(--accent)' }}>{fmtPct(m.bias_harmonized_pct)}</b></div>
-      </div>
-    </section>
-  )
-}
-
 function Skeleton() {
   return (
     <>
-      <div className="skeleton" style={{ height: 70 }} />
-      <div className="kpis">{[0, 1, 2, 3].map((i) => <div key={i} className="skeleton" style={{ height: 120 }} />)}</div>
-      <div className="skeleton" style={{ height: 560 }} />
+      <div className="skeleton" style={{ height: 150, marginTop: 44 }} />
+      <div className="skeleton" style={{ height: 170 }} />
+      <div className="skeleton" style={{ height: 620 }} />
     </>
   )
 }

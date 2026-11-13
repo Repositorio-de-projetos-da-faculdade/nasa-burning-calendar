@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react'
+import { type CSSProperties, Fragment, useMemo, useState } from 'react'
 import type { CalendarData, MonthCell } from '../lib/api'
 import { fmt, fmtCompact, fmtPct, MONTHS, MONTHS_LONG } from '../lib/format'
 import { ANOMALY_LEGEND, anomalyColor, EMPTY, FIRE, fireScale, SERIES } from '../lib/scales'
@@ -71,7 +71,7 @@ export function FireCalendar({ data, mode, selected, onSelect }: Props) {
     )
   }
 
-  const row = (y: number) => {
+  const row = (y: number, r: number) => {
     const a = annual.get(y)
     const isPeak = y === data.summary.peak_year
     return (
@@ -87,7 +87,9 @@ export function FireCalendar({ data, mode, selected, onSelect }: Props) {
             <div
               key={i}
               className="cal-c"
-              style={{ background: colorOf(c) }}
+              style={{ background: colorOf(c), '--c': colorOf(c), '--r': r } as CSSProperties}
+              data-hot={mode === 'count' && scale.hot(c.harmonized)}
+              data-lit={hover != null && (hover.year === y || hover.month === i + 1)}
               data-partial={c.partial}
               data-selected={selected?.year === y && selected?.month === i + 1}
               onMouseMove={(e) => {
@@ -105,7 +107,7 @@ export function FireCalendar({ data, mode, selected, onSelect }: Props) {
           )
         })}
         <div className="cal-bar" data-peak={isPeak} title={a?.partial ? 'Ano incompleto' : undefined}>
-          <i style={{ width: `${Math.min(100, ((a?.total ?? 0) / maxAnnual) * 72)}px`, opacity: a?.partial ? 0.3 : undefined }} />
+          <i style={{ width: `${Math.min(100, ((a?.total ?? 0) / maxAnnual) * 56)}px`, opacity: a?.partial ? 0.4 : undefined }} />
           <span className="num">{fmtCompact(a?.total)}</span>
         </div>
       </Fragment>
@@ -114,30 +116,29 @@ export function FireCalendar({ data, mode, selected, onSelect }: Props) {
 
   return (
     <div>
-      <div className="cal">
+      <div className="cal" data-hovering={hover != null}>
         <div />
         {MONTHS.map((m, i) => (
           <div key={m} className="cal-mh" data-season={season.has(i + 1)} data-hover={hover?.month === i + 1}>
             {m}
           </div>
         ))}
-        <div className="cal-mh" style={{ textAlign: 'left', paddingLeft: 8 }}>
+        <div className="cal-mh cal-total" style={{ textAlign: 'left', paddingLeft: 9 }}>
           Total anual
         </div>
 
         {viirsYears.length > 0 && <div className="cal-era">VIIRS S-NPP · medido (375 m)</div>}
         {viirsYears.map(row)}
         {modisYears.length > 0 && <div className="cal-era">MODIS Aqua · convertido para equivalente VIIRS (1 km)</div>}
-        {modisYears.map(row)}
+        {modisYears.map((y, i) => row(y, viirsYears.length + i))}
 
         <div className="cal-sep" />
-        <div className="cal-y" style={{ fontSize: 10.5 }}>
-          Mediana
-        </div>
+        <div className="cal-y">Mediana</div>
         {data.climatology.map((c) => (
           <div
             key={c.month}
             className="cal-c"
+            data-lit={hover?.month === c.month}
             style={{ background: mode === 'count' ? scale.color(c.median) : anomalyColor(1) }}
             onMouseMove={(e) =>
               show(

@@ -1,5 +1,6 @@
-import '@fontsource-variable/inter'
-import '@fontsource-variable/space-grotesk'
+import '@fontsource-variable/bricolage-grotesque'
+import '@fontsource-variable/geist'
+import '@fontsource-variable/geist-mono'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { StrictMode } from 'react'

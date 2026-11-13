@@ -5,22 +5,28 @@
  * - DIVERGING: azul (abaixo do normal) <-> cinza neutro <-> vermelho (acima do normal).
  */
 export const FIRE = [
-  '#2b1a12', '#43200f', '#5f2810', '#7f3110', '#a23c0f',
-  '#c44a12', '#e05e1d', '#f47b35', '#ff9d5c', '#ffc496',
+  '#22130c', '#3a170c', '#5a1c0b', '#80240a', '#aa300a',
+  '#d2420c', '#f05c14', '#ff8426', '#ffb24c', '#ffe391',
 ]
-export const EMPTY = '#1b1f26'
+export const EMPTY = '#171411'
+
+/** Tinta dos gráficos (espelha os tokens de app.css). */
+export const INK = {
+  hi: '#f6f1ea', text: '#b3a99f', muted: '#8a7e73', line: '#3a322b', grid: '#1e1a16', surface: '#15120f',
+}
 
 export const DIVERGING = {
   below: ['#0d366b', '#1c5cab', '#3987e5', '#86b6ef'], // muito abaixo -> pouco abaixo
-  mid: '#3a3b40',
+  mid: '#3b3632',
   above: ['#f2a39b', '#e66767', '#d03b3b', '#8f1d1d'], // pouco acima -> muito acima
 }
 
 export const SERIES = {
-  modis: '#3987e5',
-  viirs: '#199e70',
-  harmonized: '#d95926',
-  accent: '#ff7a2f',
+  modis: '#5aa9ff',
+  viirs: '#2fd0a0',
+  harmonized: '#f05c14',
+  accent: '#ff8426',
+  peak: '#ffc24a',
 }
 
 export const STATUS = { good: '#0ca30c', warning: '#fab219', serious: '#ec835a', critical: '#d03b3b' }
@@ -34,8 +40,10 @@ export function fireScale(max: number) {
     const t = Math.sqrt(v / top)
     return FIRE[Math.min(n - 1, Math.floor(t * n))]
   }
+  /** Classes mais quentes "brilham" na interface. */
+  const hot = (v: number) => v > 0 && Math.sqrt(v / top) * n >= 7
   const breaks = FIRE.map((_, i) => Math.round(top * (i / n) ** 2))
-  return { color, breaks }
+  return { color, hot, breaks }
 }
 
 /** Razão valor/mediana em escala log2, recortada em ±2 (¼× .. 4×). */

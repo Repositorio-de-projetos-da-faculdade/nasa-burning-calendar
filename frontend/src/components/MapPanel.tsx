@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { Circle, Crosshair, MousePointerClick, Pentagon, Square } from 'lucide-react'
+import { Circle, Crosshair, MousePointerClick, Pause, Pentagon, Play, Square } from 'lucide-react'
 import * as maplibregl from 'maplibre-gl'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
-import { useEffect, useRef, useState } from 'react'
+import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import { TerraDraw, TerraDrawCircleMode, TerraDrawPolygonMode, TerraDrawRectangleMode } from 'terra-draw'
 import { TerraDrawMapLibreGLAdapter } from 'terra-draw-maplibre-gl-adapter'
 import { api } from '../lib/api'
@@ -47,6 +47,7 @@ export function MapPanel({ selection, layer, setLayer, yearRange, onRegion, onDr
   cbs.current = { onRegion, onDraw }
   const [tool, setTool] = useState<Tool>('select')
   const [ready, setReady] = useState(false)
+  const [playing, setPlaying] = useState(false)
   const [coords, setCoords] = useState({ lat: '-9.0', lon: '-55.0', r: '50' })
 
   const grid = useQuery({ queryKey: ['grid', layer.year, layer.month], queryFn: () => api.grid(layer.year, layer.month) })
@@ -58,7 +59,7 @@ export function MapPanel({ selection, layer, setLayer, yearRange, onRegion, onDr
       container: el.current!,
       style: BASEMAP,
       bounds: [[-74, -17], [-44, 5.5]],
-      fitBoundsOptions: { padding: { top: 70, bottom: 140, left: 20, right: 20 } },
+      fitBoundsOptions: { padding: { top: 70, bottom: 190, left: 20, right: 20 } },
       attributionControl: { compact: true },
     })
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
@@ -71,25 +72,35 @@ export function MapPanel({ selection, layer, setLayer, yearRange, onRegion, onDr
       map.addSource('selection', { type: 'geojson', data: EMPTY_FC })
 
       map.addLayer({
+        id: 'cells-glow', type: 'circle', source: 'cells',
+        paint: {
+          'circle-radius': ['interpolate', ['exponential', 2], ['zoom'], 3, 3.5, 6, 26, 9, 200],
+          'circle-color': FIRE[5],
+          'circle-opacity': 0.16,
+          'circle-blur': 1,
+        },
+      }, firstSymbol)
+      map.addLayer({
         id: 'cells', type: 'circle', source: 'cells',
         paint: {
           'circle-radius': ['interpolate', ['exponential', 2], ['zoom'], 3, 1.0, 6, 8, 9, 64],
           'circle-color': FIRE[5],
-          'circle-opacity': 0.85,
-          'circle-blur': 0.6,
+          'circle-opacity': 0.9,
+          'circle-blur': 0.5,
         },
         layout: { 'circle-sort-key': ['get', 'v'] },
       }, firstSymbol)
       map.addLayer({
         id: 'states', type: 'line', source: 'outlines', filter: ['==', ['get', 'kind'], 'state'],
-        paint: { 'line-color': '#ffffff', 'line-opacity': 0.14, 'line-width': 0.8 },
+        paint: { 'line-color': '#f6f1ea', 'line-opacity': 0.14, 'line-width': 0.8 },
       }, firstSymbol)
       map.addLayer({
         id: 'biome', type: 'line', source: 'outlines', filter: ['==', ['get', 'kind'], 'biome'],
-        paint: { 'line-color': '#ff9d5c', 'line-opacity': 0.55, 'line-width': 1.4 },
+        paint: { 'line-color': '#ffb24c', 'line-opacity': 0.55, 'line-width': 1.4 },
       }, firstSymbol)
-      map.addLayer({ id: 'sel-fill', type: 'fill', source: 'selection', paint: { 'fill-color': '#ffffff', 'fill-opacity': 0.03 } })
-      map.addLayer({ id: 'sel-line', type: 'line', source: 'selection', paint: { 'line-color': '#ffffff', 'line-width': 1.6, 'line-opacity': 0.9 } })
+      map.addLayer({ id: 'sel-fill', type: 'fill', source: 'selection', paint: { 'fill-color': '#ffb24c', 'fill-opacity': 0.04 } })
+      map.addLayer({ id: 'sel-glow', type: 'line', source: 'selection', paint: { 'line-color': '#ff7a1f', 'line-width': 7, 'line-opacity': 0.35, 'line-blur': 6 } })
+      map.addLayer({ id: 'sel-line', type: 'line', source: 'selection', paint: { 'line-color': '#fff3e4', 'line-width': 1.4, 'line-opacity': 0.95 } })
 
       const draw = new TerraDraw({
         adapter: new TerraDrawMapLibreGLAdapter({ map }),
@@ -140,7 +151,9 @@ export function MapPanel({ selection, layer, setLayer, yearRange, onRegion, onDr
     // classes por decis: cada cor cobre a mesma quantidade de celulas, o mapa nao "apaga"
     const sorted = grid.data.cells.map((c) => c[2]).sort((a, b) => a - b)
     const breaks = FIRE.slice(1).map((_, i) => sorted[Math.floor(((i + 1) / FIRE.length) * (sorted.length - 1))] ?? 0)
-    map.setPaintProperty('cells', 'circle-color', fireQuantileExpression(breaks) as maplibregl.ExpressionSpecification)
+    const color = fireQuantileExpression(breaks) as maplibregl.ExpressionSpecification
+    map.setPaintProperty('cells', 'circle-color', color)
+    map.setPaintProperty('cells-glow', 'circle-color', color)
   }, [ready, grid.data])
 
   useEffect(() => {
@@ -149,7 +162,7 @@ export function MapPanel({ selection, layer, setLayer, yearRange, onRegion, onDr
     ;(map.getSource('selection') as maplibregl.GeoJSONSource).setData(selection ?? EMPTY_FC)
     if (selection) {
       const b = bboxOf(selection.geometry)
-      if (b) map.fitBounds(b, { padding: { top: 80, bottom: 150, left: 40, right: 40 }, maxZoom: 9, duration: 700 })
+      if (b) map.fitBounds(b, { padding: { top: 80, bottom: 200, left: 40, right: 40 }, maxZoom: 9, duration: 700 })
     }
   }, [ready, selection])
 
@@ -164,6 +177,16 @@ export function MapPanel({ selection, layer, setLayer, yearRange, onRegion, onDr
 
   const hint = TOOLS.find((t) => t.id === tool)?.hint
   const [y0, y1] = yearRange
+  const shownYear = layer.year ?? y1
+
+  // timelapse: avanca um ano por passo e volta ao inicio
+  const step = useRef(() => {})
+  step.current = () => setLayer({ year: shownYear >= y1 ? y0 : shownYear + 1, month: layer.month })
+  useEffect(() => {
+    if (!playing) return
+    const id = setInterval(() => step.current(), 1100)
+    return () => clearInterval(id)
+  }, [playing])
 
   return (
     <div className="map-wrap">
@@ -198,17 +221,20 @@ export function MapPanel({ selection, layer, setLayer, yearRange, onRegion, onDr
 
       <div className="float-card layer-card">
         <div className="layer-row">
-          <span className="layer-title">
-            Focos no mapa: <b>{layer.year ? `${layer.month ? MONTHS[layer.month - 1] + ' ' : ''}${layer.year}` : `média anual ${y0 + 1}–${y1 - 1}`}</b>
-          </span>
-          <div className="seg" style={{ marginLeft: 'auto' }}>
-            <button data-active={layer.year == null} onClick={() => setLayer({ year: null, month: null })}>Média</button>
-            <button data-active={layer.year != null && layer.month == null} onClick={() => setLayer({ year: layer.year ?? y1, month: null })}>Ano</button>
+          <div className="layer-now">
+            <small>Focos no mapa</small>
+            <b className="num">
+              {layer.year ? `${layer.month ? MONTHS[layer.month - 1] + ' ' : ''}${layer.year}` : `Média ${y0 + 1}–${y1 - 1}`}
+            </b>
+          </div>
+          <div className="seg">
+            <button data-active={layer.year == null} onClick={() => { setPlaying(false); setLayer({ year: null, month: null }) }}>Média</button>
+            <button data-active={layer.year != null && layer.month == null} onClick={() => setLayer({ year: shownYear, month: null })}>Ano</button>
           </div>
           <select
+            className="select"
             value={layer.month ?? ''}
-            onChange={(e) => setLayer({ year: layer.year ?? y1, month: e.target.value ? Number(e.target.value) : null })}
-            style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 8, height: 28, padding: '0 6px' }}
+            onChange={(e) => setLayer({ year: shownYear, month: e.target.value ? Number(e.target.value) : null })}
             aria-label="Mês"
           >
             <option value="">Ano todo</option>
@@ -216,17 +242,21 @@ export function MapPanel({ selection, layer, setLayer, yearRange, onRegion, onDr
           </select>
         </div>
         <div className="layer-row">
-          <span className="layer-title num">{y0}</span>
+          <button className="play" onClick={() => setPlaying((p) => !p)} aria-label={playing ? 'Pausar animação dos anos' : 'Animar os anos'} title={playing ? 'Pausar' : 'Animar os anos'}>
+            {playing ? <Pause size={15} fill="currentColor" /> : <Play size={15} fill="currentColor" style={{ marginLeft: 2 }} />}
+          </button>
+          <span className="layer-tick">{y0}</span>
           <input
             className="year-slider"
             type="range"
             min={y0}
             max={y1}
-            value={layer.year ?? y1}
+            value={shownYear}
+            style={{ '--p': `${((shownYear - y0) / Math.max(1, y1 - y0)) * 100}%` } as CSSProperties}
             onChange={(e) => setLayer({ year: Number(e.target.value), month: layer.month })}
             aria-label="Ano da camada"
           />
-          <span className="layer-title num">{y1}</span>
+          <span className="layer-tick">{y1}</span>
         </div>
         <div className="ramp">
           <span>menos</span>

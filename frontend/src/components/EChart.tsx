@@ -31,14 +31,14 @@ export function EChart({ option, height, onClick }: { option: echarts.EChartsOpt
 export const baseOption: echarts.EChartsOption = {
   backgroundColor: 'transparent',
   textStyle: { fontFamily: 'Geist Variable, system-ui, sans-serif', color: INK.text },
-  animationDuration: 700,
+  animationDuration: 300,
   animationEasing: 'cubicOut',
   tooltip: {
     trigger: 'axis',
-    backgroundColor: 'rgba(21,18,15,0.96)',
+    backgroundColor: INK.surface,
     borderColor: INK.line,
     padding: [10, 12],
-    extraCssText: 'border-radius:12px;box-shadow:0 18px 44px rgba(0,0,0,.6);backdrop-filter:blur(14px)',
+    extraCssText: 'border-radius:8px;box-shadow:0 12px 32px rgba(0,0,0,.5)',
     textStyle: { color: INK.hi, fontSize: 12 },
     axisPointer: { type: 'line', lineStyle: { color: INK.muted, type: 'dashed' } },
   },

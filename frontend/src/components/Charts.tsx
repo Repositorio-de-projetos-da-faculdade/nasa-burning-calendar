@@ -1,5 +1,4 @@
 import type { EChartsOption } from 'echarts'
-import * as echarts from 'echarts'
 import { useMemo } from 'react'
 import type { CalendarData, ValidationData } from '../lib/api'
 import { fmt, MONTHS } from '../lib/format'
@@ -7,10 +6,6 @@ import { INK, SERIES } from '../lib/scales'
 import { axisStyle, baseOption, EChart } from './EChart'
 
 type TipParam = { seriesName: string; value: number | null; marker: string; axisValueLabel: string }
-
-/** Gradiente vertical (topo -> base). */
-const fade = (top: string, bottom: string) =>
-  new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: top }, { offset: 1, color: bottom }])
 
 const tipRows = (params: TipParam[], skip: string[] = []) =>
   `<div style="font-weight:600;margin-bottom:4px">${params[0]?.axisValueLabel ?? ''}</div>` +
@@ -44,7 +39,7 @@ export function SeasonChart({ data }: { data: CalendarData }) {
         { name: '_p25', type: 'line', data: p25, stack: 'band', lineStyle: { opacity: 0 }, symbol: 'none', silent: true },
         {
           name: 'Faixa típica (p25–p75)', type: 'line', data: iqr, stack: 'band', symbol: 'none',
-          lineStyle: { opacity: 0 }, areaStyle: { color: 'rgba(179,169,159,0.14)' }, silent: true,
+          lineStyle: { opacity: 0 }, areaStyle: { color: 'rgba(161,161,166,0.14)' }, silent: true,
         },
         {
           name: `Mediana ${data.baseline[0]}–${data.baseline[1]}`, type: 'line', symbol: 'none',
@@ -54,14 +49,13 @@ export function SeasonChart({ data }: { data: CalendarData }) {
         ...(peak && peak !== cur
           ? [{
               name: `${peak} (ano recorde)`, type: 'line' as const, symbol: 'none', data: line(peak),
-              lineStyle: { color: SERIES.peak, width: 1.5 }, itemStyle: { color: SERIES.peak },
+              lineStyle: { color: INK.hi, width: 1 }, itemStyle: { color: INK.hi },
             }]
           : []),
         {
-          name: String(cur), type: 'line', data: line(cur), symbol: 'circle', symbolSize: 8,
-          lineStyle: { color: SERIES.accent, width: 3, shadowColor: 'rgba(255,122,31,0.7)', shadowBlur: 14 },
+          name: String(cur), type: 'line', data: line(cur), symbol: 'circle', symbolSize: 6,
+          lineStyle: { color: SERIES.accent, width: 2 },
           itemStyle: { color: SERIES.accent, borderColor: INK.surface, borderWidth: 2 },
-          areaStyle: { color: fade('rgba(255,122,31,0.32)', 'rgba(255,122,31,0)') },
           z: 10,
         },
       ],
@@ -73,7 +67,7 @@ export function SeasonChart({ data }: { data: CalendarData }) {
     <div>
       <div className="chart-legend">
         <span><i style={{ background: SERIES.accent }} />{data.current.year}</span>
-        {peak && peak !== data.current.year && <span><i style={{ background: SERIES.peak }} />{peak} (recorde)</span>}
+        {peak && peak !== data.current.year && <span><i style={{ background: INK.hi }} />{peak} (recorde)</span>}
         <span style={{ color: INK.text }}><i className="dash" style={{ background: INK.text }} />mediana</span>
         <span><i className="band" style={{ background: INK.text }} />faixa típica</span>
       </div>
@@ -111,11 +105,11 @@ export function AnnualChart({ data, onPick }: { data: CalendarData; onPick: (y: 
         data: data.annual.map((a) => ({
           value: a.total,
           itemStyle: {
-            color: a.year === data.summary.peak_year ? fade(SERIES.peak, SERIES.accent) : fade(SERIES.harmonized, '#80240a'),
+            color: a.year === data.summary.peak_year ? SERIES.accent : INK.bar,
             opacity: a.partial ? 0.45 : 1,
-            borderRadius: [5, 5, 0, 0],
+            borderRadius: [2, 2, 0, 0],
             decal: a.converted
-              ? { symbol: 'rect', dashArrayX: [1, 0], dashArrayY: [2, 4], rotation: Math.PI / 4, color: 'rgba(0,0,0,0.35)' }
+              ? { symbol: 'rect', dashArrayX: [1, 0], dashArrayY: [2, 4], rotation: Math.PI / 4, color: 'rgba(0,0,0,0.45)' }
               : undefined,
           },
         })),
@@ -158,7 +152,7 @@ export function ValidationChart({ data }: { data: ValidationData }) {
         s('VIIRS S-NPP (referência)', 'viirs_raw', SERIES.viirs),
         s('MODIS Aqua bruto', 'modis_raw', SERIES.modis),
         {
-          ...s('MODIS harmonizado', 'modis_harmonized', SERIES.harmonized, true),
+          ...s('MODIS harmonizado', 'modis_harmonized', SERIES.accent, true),
           markArea: i1 > 0 ? {
             silent: true, itemStyle: { color: 'rgba(255,255,255,0.03)' },
             label: { color: INK.muted, fontSize: 11, position: 'insideTop' },
@@ -174,7 +168,7 @@ export function ValidationChart({ data }: { data: ValidationData }) {
       <div className="chart-legend">
         <span><i style={{ background: SERIES.viirs }} />VIIRS S-NPP (referência)</span>
         <span><i style={{ background: SERIES.modis }} />MODIS Aqua bruto</span>
-        <span style={{ color: SERIES.harmonized }}><i className="dash" style={{ background: SERIES.harmonized }} /><span style={{ color: INK.text }}>MODIS harmonizado</span></span>
+        <span style={{ color: SERIES.accent }}><i className="dash" style={{ background: SERIES.accent }} /><span style={{ color: INK.text }}>MODIS harmonizado</span></span>
       </div>
       <EChart option={option} height={260} />
     </div>

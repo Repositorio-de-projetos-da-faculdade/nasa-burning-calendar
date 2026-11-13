@@ -6,12 +6,13 @@ import { useEffect, useRef, useState } from 'react'
 import { TerraDraw, TerraDrawCircleMode, TerraDrawPolygonMode, TerraDrawRectangleMode } from 'terra-draw'
 import { TerraDrawMapLibreGLAdapter } from 'terra-draw-maplibre-gl-adapter'
 import { api } from '../lib/api'
-import { FIRE, fireQuantileExpression } from '../lib/scales'
+import { INK, LEVELS, SERIES } from '../lib/scales'
 
 maplibregl.setWorkerUrl(maplibreWorkerUrl)
 
 const BASEMAP = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
 const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
+const CELL = 0.1 // lado da celula da grade, em graus
 /** Escala fixa (focos por celula no mes): assim o mapa apaga na chuva e acende na seca. */
 const MONTH_BREAKS = [2, 4, 8, 15, 30, 60, 120, 240, 480]
 
@@ -77,36 +78,16 @@ export function MapPanel({ selection, layer, onRegion, onDraw, onPoint }: Props)
       map.addSource('cells', { type: 'geojson', data: EMPTY_FC })
       map.addSource('selection', { type: 'geojson', data: EMPTY_FC })
 
-      map.addLayer({
-        id: 'cells-glow', type: 'circle', source: 'cells',
-        paint: {
-          'circle-radius': ['interpolate', ['exponential', 2], ['zoom'], 3, 3.5, 6, 26, 9, 200],
-          'circle-color': FIRE[5],
-          'circle-opacity': 0.16,
-          'circle-blur': 1,
-        },
-      }, firstSymbol)
-      map.addLayer({
-        id: 'cells', type: 'circle', source: 'cells',
-        paint: {
-          'circle-radius': ['interpolate', ['exponential', 2], ['zoom'], 3, 1.0, 6, 8, 9, 64],
-          'circle-color': FIRE[5],
-          'circle-opacity': 0.9,
-          'circle-blur': 0.5,
-        },
-        layout: { 'circle-sort-key': ['get', 'v'] },
-      }, firstSymbol)
+      map.addLayer({ id: 'cells', type: 'fill', source: 'cells', paint: { 'fill-color': SERIES.accent, 'fill-antialias': false } }, firstSymbol)
       map.addLayer({
         id: 'states', type: 'line', source: 'outlines', filter: ['==', ['get', 'kind'], 'state'],
-        paint: { 'line-color': '#f6f1ea', 'line-opacity': 0.14, 'line-width': 0.8 },
+        paint: { 'line-color': INK.hi, 'line-opacity': 0.12, 'line-width': 0.8 },
       }, firstSymbol)
       map.addLayer({
         id: 'biome', type: 'line', source: 'outlines', filter: ['==', ['get', 'kind'], 'biome'],
-        paint: { 'line-color': '#ffb24c', 'line-opacity': 0.55, 'line-width': 1.4 },
+        paint: { 'line-color': INK.hi, 'line-opacity': 0.45, 'line-width': 1 },
       }, firstSymbol)
-      map.addLayer({ id: 'sel-fill', type: 'fill', source: 'selection', paint: { 'fill-color': '#ffb24c', 'fill-opacity': 0.04 } })
-      map.addLayer({ id: 'sel-glow', type: 'line', source: 'selection', paint: { 'line-color': '#ff7a1f', 'line-width': 7, 'line-opacity': 0.35, 'line-blur': 6 } })
-      map.addLayer({ id: 'sel-line', type: 'line', source: 'selection', paint: { 'line-color': '#fff3e4', 'line-width': 1.4, 'line-opacity': 0.95 } })
+      map.addLayer({ id: 'sel-line', type: 'line', source: 'selection', paint: { 'line-color': INK.hi, 'line-width': 1.5 } })
 
       const draw = new TerraDraw({
         adapter: new TerraDrawMapLibreGLAdapter({ map }),
@@ -147,20 +128,23 @@ export function MapPanel({ selection, layer, onRegion, onDraw, onPoint }: Props)
   useEffect(() => {
     if (!ready || !grid.data) return
     const map = mapRef.current!
+    // ano e media: classes por decis (cada nivel cobre a mesma quantidade de celulas); mes: escala fixa
+    const sorted = grid.data.cells.map((c) => c[2]).sort((a, b) => a - b)
+    const deciles = Array.from({ length: LEVELS - 1 }, (_, i) => sorted[Math.floor(((i + 1) / LEVELS) * (sorted.length - 1))] ?? 0)
+    const breaks = monthly.current ? MONTH_BREAKS : deciles
+    // meio-tom: cada celula vira um quadrado cujo lado cresce com o nivel
     const fc: GeoJSON.FeatureCollection = {
       type: 'FeatureCollection',
-      features: grid.data.cells.map(([lon, lat, v]) => ({
-        type: 'Feature', properties: { v }, geometry: { type: 'Point', coordinates: [lon, lat] },
-      })),
+      features: grid.data.cells.map(([lon, lat, v]) => {
+        const level = breaks.filter((b) => v >= b).length // 0..LEVELS-1
+        const h = (CELL / 2) * (0.3 + (0.7 * level) / (LEVELS - 1))
+        return {
+          type: 'Feature', properties: {},
+          geometry: { type: 'Polygon', coordinates: [[[lon - h, lat - h], [lon + h, lat - h], [lon + h, lat + h], [lon - h, lat + h], [lon - h, lat - h]]] },
+        }
+      }),
     }
     ;(map.getSource('cells') as maplibregl.GeoJSONSource).setData(fc)
-    // ano e media: classes por decis (cada cor cobre a mesma quantidade de celulas); mes: escala fixa
-    const sorted = grid.data.cells.map((c) => c[2]).sort((a, b) => a - b)
-    const deciles = FIRE.slice(1).map((_, i) => sorted[Math.floor(((i + 1) / FIRE.length) * (sorted.length - 1))] ?? 0)
-    const breaks = monthly.current ? MONTH_BREAKS : deciles
-    const color = fireQuantileExpression(breaks) as maplibregl.ExpressionSpecification
-    map.setPaintProperty('cells', 'circle-color', color)
-    map.setPaintProperty('cells-glow', 'circle-color', color)
   }, [ready, grid.data])
 
   useEffect(() => {

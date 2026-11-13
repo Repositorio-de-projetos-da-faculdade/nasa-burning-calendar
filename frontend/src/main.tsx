@@ -1,4 +1,4 @@
-import '@fontsource-variable/bricolage-grotesque'
+import '@fontsource/geist-pixel'
 import '@fontsource-variable/geist'
 import '@fontsource-variable/geist-mono'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'

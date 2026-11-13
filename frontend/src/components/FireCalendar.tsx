@@ -1,4 +1,4 @@
-import { type CSSProperties, Fragment, useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import type { CalendarData, MonthCell } from '../lib/api'
 import { fmt, fmtCompact, fmtPct, MONTHS, MONTHS_LONG } from '../lib/format'
 import { ANOMALY_LEGEND, anomalyColor, EMPTY, FIRE, fireScale, SERIES } from '../lib/scales'
@@ -71,7 +71,7 @@ export function FireCalendar({ data, mode, selected, onSelect }: Props) {
     )
   }
 
-  const row = (y: number, r: number) => {
+  const row = (y: number) => {
     const a = annual.get(y)
     const isPeak = y === data.summary.peak_year
     return (
@@ -87,8 +87,7 @@ export function FireCalendar({ data, mode, selected, onSelect }: Props) {
             <div
               key={i}
               className="cal-c"
-              style={{ background: colorOf(c), '--c': colorOf(c), '--r': r } as CSSProperties}
-              data-hot={mode === 'count' && scale.hot(c.harmonized)}
+              style={{ background: colorOf(c) }}
               data-lit={hover != null && (hover.year === y || hover.month === i + 1)}
               data-partial={c.partial}
               data-selected={selected?.year === y && selected?.month === i + 1}
@@ -130,7 +129,7 @@ export function FireCalendar({ data, mode, selected, onSelect }: Props) {
         {viirsYears.length > 0 && <div className="cal-era">VIIRS S-NPP, medido (375 m)</div>}
         {viirsYears.map(row)}
         {modisYears.length > 0 && <div className="cal-era">MODIS Aqua, convertido para equivalente VIIRS (1 km)</div>}
-        {modisYears.map((y, i) => row(y, viirsYears.length + i))}
+        {modisYears.map(row)}
 
         <div className="cal-sep" />
         <div className="cal-y">Mediana</div>

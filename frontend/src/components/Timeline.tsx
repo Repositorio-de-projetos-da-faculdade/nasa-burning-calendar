@@ -2,7 +2,6 @@ import { Pause, Play } from 'lucide-react'
 import { type KeyboardEvent, type PointerEvent, useMemo } from 'react'
 import type { CalendarData } from '../lib/api'
 import { MONTHS_LONG } from '../lib/format'
-import { FIRE, fireScale } from '../lib/scales'
 import type { Layer } from './MapPanel'
 
 interface Props {
@@ -14,7 +13,7 @@ interface Props {
 }
 
 /**
- * Os anos de satélite como uma faixa só: uma barra por mês, altura e cor pelos focos da área.
+ * Os anos de satélite como uma faixa só: uma barra por mês, altura pelos focos da área.
  * Arrastar sobre ela escolhe o período mostrado no mapa.
  */
 export function Timeline({ d, layer, setLayer, playing, setPlaying }: Props) {
@@ -25,10 +24,9 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying }: Props) {
     const byKey = new Map(d.series.map((c) => [(c.year - y0) * 12 + c.month - 1, c.harmonized]))
     const vals = [...byKey.values()].filter((v) => v > 0).sort((a, b) => a - b)
     const top = vals.length ? vals[Math.floor(vals.length * 0.98)] : 1
-    const scale = fireScale(top)
     return Array.from({ length: nYears * 12 }, (_, i) => {
       const v = byKey.get(i)
-      return v == null ? null : { h: Math.max(4, Math.min(100, Math.sqrt(v / top) * 100)), color: scale.color(v) }
+      return v == null ? 0 : Math.max(4, Math.min(100, Math.sqrt(v / top) * 100))
     })
   }, [d, y0, nYears])
 
@@ -56,6 +54,7 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying }: Props) {
   }
 
   const now = layer.year == null ? 'média de todos os anos' : `${layer.month ? MONTHS_LONG[layer.month - 1] + ' de ' : ''}${layer.year}`
+  const lastFull = y0 + nYears - 2
 
   return (
     <div className="timeline">
@@ -64,14 +63,14 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying }: Props) {
           {playing ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" style={{ marginLeft: 2 }} />}
         </button>
         <div className="seg" role="group" aria-label="Período no mapa">
-          <button data-active={layer.month != null} onClick={() => setLayer({ year: layer.year ?? y0 + nYears - 2, month: layer.month ?? 9 })}>Mês</button>
-          <button data-active={byYear} onClick={() => setLayer({ year: layer.year ?? y0 + nYears - 2, month: null })}>Ano</button>
+          <button data-active={layer.month != null} onClick={() => setLayer({ year: layer.year ?? lastFull, month: layer.month ?? 9 })}>Mês</button>
+          <button data-active={byYear} onClick={() => setLayer({ year: layer.year ?? lastFull, month: null })}>Ano</button>
           <button data-active={layer.year == null} onClick={() => setLayer({ year: null, month: null })}>Média</button>
         </div>
-        <div className="ramp">
+        <div className="map-key" aria-label="Legenda do mapa: quadrados maiores indicam mais focos por célula de 11 km">
           <span>menos</span>
-          <div className="ramp-bar">{FIRE.map((c) => <i key={c} style={{ background: c }} />)}</div>
-          <span>mais focos</span>
+          {[2, 4, 6, 8, 10].map((s) => <i key={s} style={{ width: s, height: s }} />)}
+          <span>mais focos por célula de 11 km</span>
         </div>
       </div>
 
@@ -84,7 +83,6 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying }: Props) {
         aria-valuemax={y0 + nYears - 1}
         aria-valuenow={layer.year ?? y0}
         aria-valuetext={now}
-        data-scrubbed={layer.year != null}
         onPointerDown={(e) => {
           e.currentTarget.setPointerCapture(e.pointerId)
           fromPointer(e)
@@ -92,17 +90,11 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying }: Props) {
         onPointerMove={(e) => e.buttons === 1 && fromPointer(e)}
         onKeyDown={onKey}
       >
-        {bars.map((b, i) => (
-          <i key={i} data-lit={lit(i)} style={b ? { height: `${b.h}%`, background: b.color } : { height: 0 }} />
+        {bars.map((h, i) => (
+          <i key={i} data-lit={lit(i)} style={{ height: `${h}%` }} />
         ))}
-        {layer.year != null && (
-          <b
-            className="tl-head"
-            style={{
-              left: `${(((layer.year - y0) * 12 + (layer.month ?? 1) - 1) / bars.length) * 100}%`,
-              width: `${((layer.month ? 1 : 12) / bars.length) * 100}%`,
-            }}
-          />
+        {layer.year != null && layer.month != null && (
+          <b className="tl-head" style={{ left: `${(((layer.year - y0) * 12 + layer.month - 0.5) / bars.length) * 100}%` }} />
         )}
       </div>
 

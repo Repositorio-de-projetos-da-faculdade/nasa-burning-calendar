@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { AreaQuery, CalendarData, ValidationData } from '../lib/api'
 import { fmt, fmtDate, fmtPct } from '../lib/format'
 import { AnnualChart, SeasonChart } from './Charts'
+import { Embers } from './Embers'
 import { ExportMenu } from './ExportMenu'
 import { type CalMode, FireCalendar } from './FireCalendar'
 import { Kpis } from './Kpis'
@@ -47,6 +48,7 @@ export function Dossier({ cal, validation, query, mode, setMode, layer, setLayer
       <button className="panel-toggle" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls="dossier">
         <Icon size={15} /> {open ? 'Só o mapa' : 'Abrir análise'}
       </button>
+      <div className="panel-bg" aria-hidden="true"><Embers count={22} /></div>
       <main className="panel" id="dossier" inert={!open}>
         <div className="panel-top">
           {cal.isFetching && <div className="loading-bar" />}

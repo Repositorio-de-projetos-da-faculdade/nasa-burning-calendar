@@ -1,8 +1,9 @@
 /**
- * Escalas visuais.
- * - FIRE: sequencial de um só matiz (do fundo ao laranja e ao quase branco): pouco fogo recua, muito fogo acende.
- * - DIVERGING: azul (abaixo do normal) / neutro / vermelho (acima), sempre do fraco ao forte.
+ * Escalas visuais. O calendário usa a mesma linguagem do mapa: um quadrado por valor,
+ * cujo tamanho cresce com os focos; a cor só reforça (cinza = quase nada, quase branco = extremo).
  */
+
+/** Número de classes do meio-tom do mapa. */
 export const LEVELS = 10
 
 /** Tinta da interface (espelha os tokens de app.css). */
@@ -12,41 +13,41 @@ export const INK = {
 
 export const SERIES = { modis: '#6ea8ff', viirs: '#3ecf9b', accent: '#ff6a1f' }
 
-export const FIRE = ['#221b18', '#35211a', '#4f271a', '#6e2d18', '#903515', '#b43e13', '#d94c14', '#ff6a1f', '#ff9c63', '#ffd3b3']
-export const EMPTY = INK.grid
-
-const DIVERGING = {
-  below: ['#1b3152', '#234c8c', '#3a74d4', '#8db8ff'],
-  mid: '#38383c',
-  above: ['#5c2420', '#96342d', '#d9483c', '#ff8f82'],
+/** Um valor desenhado: lado relativo (0..1) e cor. */
+export interface Mark {
+  size: number
+  color: string
 }
 
-/** Escala sqrt quantizada em LEVELS classes; 0 = vazio. */
-export function fireScale(max: number) {
+const QUIET = '#5c5c62'
+const fireColor = (t: number) => (t < 0.18 ? QUIET : t < 0.45 ? '#c2501c' : t < 0.8 ? SERIES.accent : '#ffc9a3')
+
+/** Focos -> marca, em escala sqrt (a área do quadrado acompanha o valor). */
+export function fireMarks(max: number) {
   const top = Math.max(max, 1)
-  const color = (v: number) => (!v || v <= 0 ? EMPTY : FIRE[Math.min(LEVELS - 1, Math.floor(Math.sqrt(v / top) * LEVELS))])
-  const breaks = FIRE.map((_, i) => Math.round(top * (i / LEVELS) ** 2))
-  return { color, breaks }
+  const mark = (v: number): Mark => {
+    const t = Math.min(1, Math.sqrt(Math.max(v, 0) / top))
+    return { size: t, color: fireColor(t) }
+  }
+  const legend = [0.1, 0.3, 0.5, 0.75, 1].map((t) => ({ mark: { size: t, color: fireColor(t) }, value: top * t * t }))
+  return { mark, legend }
 }
 
-/** Razão valor/mediana em escala log2, recortada em ±2 (¼× .. 4×). */
-export function anomalyColor(ratio: number | null) {
-  if (ratio == null || !isFinite(ratio)) return EMPTY
-  const l = Math.log2(Math.max(ratio, 1e-3))
-  if (Math.abs(l) < 0.25) return DIVERGING.mid
-  const steps = DIVERGING.below.length
-  const idx = Math.min(steps - 1, Math.floor(((Math.abs(l) - 0.25) / 1.75) * steps))
-  return (l < 0 ? DIVERGING.below : DIVERGING.above)[idx]
+const BELOW = '#6ea8ff'
+const ABOVE = '#ff5a4a'
+
+/** Razão valor/mediana em log2, recortada em ±2 (¼× .. 4×): azul abaixo, vermelho acima, tamanho pela distância do normal. */
+export function anomalyMark(ratio: number | null): Mark {
+  if (ratio == null || !isFinite(ratio)) return { size: 0, color: QUIET }
+  const l = Math.max(-2, Math.min(2, Math.log2(Math.max(ratio, 1e-3))))
+  if (Math.abs(l) < 0.25) return { size: 0.12, color: QUIET }
+  return { size: 0.2 + 0.8 * (Math.abs(l) / 2), color: l < 0 ? BELOW : ABOVE }
 }
 
 export const ANOMALY_LEGEND = [
-  { label: '≤¼×', color: DIVERGING.below[3] },
-  { label: '', color: DIVERGING.below[2] },
-  { label: '½×', color: DIVERGING.below[1] },
-  { label: '', color: DIVERGING.below[0] },
-  { label: '1×', color: DIVERGING.mid },
-  { label: '', color: DIVERGING.above[0] },
-  { label: '2×', color: DIVERGING.above[1] },
-  { label: '', color: DIVERGING.above[2] },
-  { label: '≥4×', color: DIVERGING.above[3] },
+  { label: '≤¼×', mark: anomalyMark(0.25) },
+  { label: '½×', mark: anomalyMark(0.5) },
+  { label: '1×', mark: anomalyMark(1) },
+  { label: '2×', mark: anomalyMark(2) },
+  { label: '≥4×', mark: anomalyMark(4) },
 ]

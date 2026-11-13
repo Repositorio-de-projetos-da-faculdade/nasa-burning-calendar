@@ -1,6 +1,7 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Dossier } from './components/Dossier'
+import { Embers } from './components/Embers'
 import type { CalMode } from './components/FireCalendar'
 import { Hud } from './components/Hud'
 import { type Layer, MapPanel } from './components/MapPanel'
@@ -103,6 +104,7 @@ export default function App() {
       <div className="stage">
         <MapPanel selection={selection} layer={layer} onRegion={onRegion} onDraw={onDraw} onPoint={onPoint} />
         <div className="scrim" aria-hidden="true" />
+        <Embers count={36} />
         <TopBar regions={regions.data ?? []} value={area.kind === 'region' ? area.id : ''} onRegion={onRegion} />
         {d && <Hud d={d} layer={layer} />}
         {d && <Timeline d={d} layer={layer} setLayer={setLayer} playing={playing} setPlaying={setPlaying} />}

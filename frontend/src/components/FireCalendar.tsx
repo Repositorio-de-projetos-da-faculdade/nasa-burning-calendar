@@ -106,7 +106,7 @@ export function FireCalendar({ data, mode, selected, onSelect }: Props) {
           )
         })}
         <div className="cal-bar" data-peak={isPeak} title={a?.partial ? 'Ano incompleto' : undefined}>
-          <i style={{ width: `${Math.min(100, ((a?.total ?? 0) / maxAnnual) * 56)}px`, opacity: a?.partial ? 0.4 : undefined }} />
+          <i style={{ width: `${Math.min(100, ((a?.total ?? 0) / maxAnnual) * 40)}px`, opacity: a?.partial ? 0.4 : undefined }} />
           <span className="num">{fmtCompact(a?.total)}</span>
         </div>
       </Fragment>

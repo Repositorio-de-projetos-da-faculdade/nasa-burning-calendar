@@ -19,7 +19,7 @@ const MONTH_BREAKS = [2, 4, 8, 15, 30, 60, 120, 240, 480]
 /** Espaco reservado ao que fica por cima do mapa (painel a direita, linha do tempo embaixo). */
 const framing = () =>
   innerWidth > 900
-    ? { top: 110, bottom: 250, left: 150, right: 560 }
+    ? { top: 110, bottom: 250, left: 150, right: (document.getElementById('dossier')?.offsetWidth ?? 520) + 40 }
     : { top: 110, bottom: 250, left: 16, right: 16 }
 
 type Tool = 'select' | 'rectangle' | 'polygon' | 'circle' | 'coords'

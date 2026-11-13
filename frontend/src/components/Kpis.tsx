@@ -39,7 +39,8 @@ export function Kpis({ data }: { data: CalendarData }) {
           <dt className="fact-label">Acumulado em {ytd.year}</dt>
           <dd className="fact-value num">{fmt(ytd.value)}</dd>
           <dd className="fact-foot">
-            <Badge pct={ytd.anomaly_pct} /> {ordinal(ytd.rank)} maior de {ytd.of} anos{partial ? ' até esta data' : ''}
+            <Badge pct={ytd.anomaly_pct} />
+            {ordinal(ytd.rank)} maior de {ytd.of} anos{partial ? ' até esta data' : ''}
           </dd>
         </div>
         <div className="fact">

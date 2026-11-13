@@ -71,7 +71,7 @@ export function SeasonChart({ data }: { data: CalendarData }) {
         <span style={{ color: INK.text }}><i className="dash" style={{ background: INK.text }} />mediana</span>
         <span><i className="band" style={{ background: INK.text }} />faixa típica</span>
       </div>
-      <EChart option={option} height={260} />
+      <EChart option={option} height={300} />
     </div>
   )
 }
@@ -124,7 +124,7 @@ export function AnnualChart({ data, onPick }: { data: CalendarData; onPick: (y: 
   }, [data])
 
   return (
-    <EChart option={option} height={260} onClick={(i) => onPick(data.annual[i].year)} />
+    <EChart option={option} height={300} onClick={(i) => onPick(data.annual[i].year)} />
   )
 }
 
@@ -170,7 +170,7 @@ export function ValidationChart({ data }: { data: ValidationData }) {
         <span><i style={{ background: SERIES.modis }} />MODIS Aqua bruto</span>
         <span style={{ color: SERIES.accent }}><i className="dash" style={{ background: SERIES.accent }} /><span style={{ color: INK.text }}>MODIS harmonizado</span></span>
       </div>
-      <EChart option={option} height={260} />
+      <EChart option={option} height={300} />
     </div>
   )
 }

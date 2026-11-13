@@ -17,7 +17,7 @@ export function MethodSection({ v }: { v: ValidationData }) {
     ['Viés após harmonizar', fmtPct(m.bias_harmonized_pct), true],
   ]
   return (
-    <section className="sec">
+    <section>
       <h2>Como MODIS e VIIRS viram uma série só</h2>
       <p className="sec-desc">
         O VIIRS enxerga pixels de 375 m e detecta cerca de {m.ratio_viirs_modis?.toLocaleString('pt-BR')}× mais focos que o

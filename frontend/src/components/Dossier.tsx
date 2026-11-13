@@ -55,7 +55,7 @@ export function Dossier({ cal, validation, query, mode, setMode, layer, setLayer
               {d && (
                 <>
                   <b>{KIND_LABEL[d.area.kind] ?? d.area.kind}{d.area.uf && d.area.kind === 'municipality' ? `, ${d.area.uf}` : ''} · {fmt(d.area.area_km2)} km²</b>
-                  <span><i className="live-dot" /> Dados até {fmtDate(d.data_until)}</span>
+                  <span>Dados até {fmtDate(d.data_until)}</span>
                 </>
               )}
             </div>

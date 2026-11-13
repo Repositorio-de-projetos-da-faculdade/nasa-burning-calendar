@@ -1,0 +1,118 @@
+export type AreaQuery =
+  | { region: string }
+  | { geometry: GeoJSON.Geometry }
+  | { lat: number; lon: number; radius_km: number }
+
+export interface Region {
+  id: string
+  name: string
+  kind: 'biome' | 'state' | 'municipality'
+  uf: string | null
+  bbox: [number, number, number, number]
+}
+
+export interface MonthCell {
+  year: number
+  month: number
+  harmonized: number
+  modis_raw: number
+  viirs_raw: number
+  source: 'VIIRS' | 'MODIS→VIIRS'
+  partial: boolean
+  anomaly_pct: number | null
+  anomaly_iqr: number | null
+}
+
+export interface Climatology {
+  month: number
+  median: number
+  p25: number
+  p75: number
+  max: number
+  max_year: number | null
+}
+
+export interface AnnualTotal {
+  year: number
+  total: number
+  months: number
+  partial: boolean
+  converted: boolean
+}
+
+export interface CalendarData {
+  area: { name: string; kind: string; uf?: string | null; area_km2: number; bbox: number[] }
+  data_from: string
+  data_until: string
+  baseline: [number, number]
+  years: number[]
+  series: MonthCell[]
+  climatology: Climatology[]
+  annual: AnnualTotal[]
+  current: { year: number; month: number; day: number; value: number; expected: number; anomaly_pct: number | null }
+  ytd: { year: number; value: number; expected: number; anomaly_pct: number | null; rank: number; of: number }
+  summary: {
+    total: number
+    peak_year: number | null
+    peak_year_total: number | null
+    record_month: { year: number; month: number; value: number }
+    critical_months: number[]
+    fire_season_months: number[]
+    season_share: number
+  }
+  unit: string
+}
+
+export interface GridData {
+  cells: [number, number, number][]
+  p95: number
+  max: number
+  per_year_mean: boolean
+}
+
+export interface ValidationData {
+  rows: { year: number; month: number; modis_raw: number; viirs_raw: number; modis_harmonized: number }[]
+  calibration_years: [number, number]
+  metrics: {
+    corr_harmonized: number | null
+    corr_out_of_sample: number | null
+    bias_raw_pct: number | null
+    bias_harmonized_pct: number | null
+    bias_out_of_sample_pct: number | null
+    ratio_viirs_modis: number | null
+  }
+}
+
+async function json<T>(r: Response): Promise<T> {
+  if (!r.ok) throw new Error((await r.json().catch(() => null))?.detail ?? r.statusText)
+  return r.json()
+}
+
+const post = <T,>(path: string, body: unknown) =>
+  fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(
+    (r) => json<T>(r),
+  )
+const get = <T,>(path: string) => fetch(path).then((r) => json<T>(r))
+
+export const api = {
+  regions: () => get<Region[]>('/api/regions'),
+  outlines: () => get<GeoJSON.FeatureCollection>('/api/regions/outlines'),
+  region: (id: string) => get<GeoJSON.Feature>(`/api/regions/${id}`),
+  regionAt: (lon: number, lat: number) => get<Region>(`/api/regions/at?lon=${lon}&lat=${lat}`),
+  calendar: (q: AreaQuery) => post<CalendarData>('/api/calendar', q),
+  grid: (year: number | null, month: number | null) =>
+    get<GridData>(`/api/grid?${year ? `year=${year}` : ''}${month ? `&month=${month}` : ''}`),
+  validation: () => get<ValidationData>('/api/validation'),
+}
+
+export async function download(path: string, body: unknown, filename: string) {
+  const r = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!r.ok) throw new Error(r.statusText)
+  const url = URL.createObjectURL(await r.blob())
+  Object.assign(document.createElement('a'), { href: url, download: filename }).click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}

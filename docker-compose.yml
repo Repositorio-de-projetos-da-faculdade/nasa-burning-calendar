@@ -1,0 +1,38 @@
+name: firecal
+# Uso na VM:
+#   docker compose up -d --build                 # sobe web + api
+#   docker compose run --rm pipeline all         # baixa/processa os dados (primeira vez)
+#   docker compose run --rm pipeline download-recent && docker compose run --rm pipeline ingest && docker compose run --rm pipeline harmonize
+services:
+  api:
+    build: ./backend
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+      REGION_BOUNDARY: /data/boundaries/amazonia.geojson
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 5s
+
+  web:
+    build: ./frontend
+    ports:
+      - "${WEB_PORT:-80}:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  pipeline:
+    build: ./backend
+    entrypoint: ["firecal"]
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+      REGION_BOUNDARY: /data/boundaries/amazonia.geojson
+    volumes:
+      - ./data:/data
+    profiles: ["pipeline"]

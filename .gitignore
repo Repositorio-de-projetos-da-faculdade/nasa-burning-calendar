@@ -1,0 +1,29 @@
+# secrets
+.env
+
+# data (large, regenerable)
+data/raw/
+data/processed/
+*.parquet
+*.duckdb
+*.duckdb.wal
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# node
+node_modules/
+dist/
+
+# editors / os
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# limites baixados do INPE (regeneraveis com `firecal regions`)
+data/boundaries/

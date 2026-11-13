@@ -38,6 +38,8 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying, pinned, onPi
   // o mapa do período ainda está a caminho (mesma consulta do mapa, pelo cache)
   const loading = useQuery(gridQuery(layer)).isFetching
   const preloaded = usePreloadGrids(d, layer.year)
+  // a linha do tempo só é liberada com o histórico inteiro em memória: daí em diante nada espera a rede
+  const locked = preloaded < 1
 
   const { bars, byKey } = useMemo(() => {
     const byKey = new Map(d.series.map((c) => [(c.year - y0) * 12 + c.month - 1, c.harmonized]))
@@ -79,12 +81,12 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying, pinned, onPi
 
   return (
     <div className="widget timeline" aria-busy={loading}>
-      {loading && <div className="loading-bar" />}
+      {locked ? <i className="tl-progress" style={{ width: `${preloaded * 100}%` }} /> : loading && <div className="loading-bar" />}
       <div className="tl-controls">
-        <button className="play" onClick={() => setPlaying(!playing)} aria-label={playing ? 'Pausar a passagem do tempo' : 'Passar o tempo'}>
+        <button className="play" disabled={locked} onClick={() => setPlaying(!playing)} aria-label={playing ? 'Pausar a passagem do tempo' : 'Passar o tempo'}>
           {playing ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" style={{ marginLeft: 2 }} />}
         </button>
-        <div className="seg" role="group" aria-label="Período no mapa">
+        <div className="seg" role="group" aria-label="Período no mapa" inert={locked}>
           <button data-active={layer.month != null} onClick={() => setLayer({ year: layer.year ?? lastFull, month: layer.month ?? 9 })}>Mês</button>
           <button data-active={byYear} onClick={() => setLayer({ year: layer.year ?? lastFull, month: null })}>Ano</button>
           <button data-active={layer.year == null} onClick={() => setLayer({ year: null, month: null })}>Média</button>
@@ -99,8 +101,8 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying, pinned, onPi
         </div>
         {/* o mês sob o cursor, antes de clicar; enquanto o histórico baixa, o quanto falta */}
         <p className="tl-read num" aria-hidden="true">
-          {hover == null && preloaded < 1 && <>Carregando histórico <b>{Math.round(preloaded * 100)}%</b></>}
-          {hover != null && byKey.has(hover) && (
+          {locked && <>Carregando histórico <b>{Math.round(preloaded * 100)}%</b></>}
+          {!locked && hover != null && byKey.has(hover) && (
             <>{MONTHS[hover % 12]} {y0 + Math.floor(hover / 12)} <b>{fmt(byKey.get(hover)!)}</b> focos</>
           )}
         </p>
@@ -108,6 +110,7 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying, pinned, onPi
 
       <div
         className="tl-strip"
+        inert={locked}
         role="slider"
         tabIndex={0}
         aria-label="Período mostrado no mapa"

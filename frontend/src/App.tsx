@@ -25,16 +25,13 @@ function circle(lat: number, lon: number, rKm: number): GeoJSON.Geometry {
 }
 
 const STEP_MS = 900
-const INTRO_MS = 380 // abertura: um ano por passo, os 24 anos em ~10 s
 
 export default function App() {
   const [shared] = useState(readShare)
   const [area, setArea] = useState<Area>(shared.area ?? { kind: 'region', id: 'amazonia' })
   const [mode, setMode] = useState<CalMode>('count')
   const [layer, setLayerRaw] = useState<Layer>(shared.layer ?? { year: null, month: null })
-  // sem período no link e com movimento permitido, a página abre passando os anos sozinha
-  const [intro, setIntro] = useState(() => !shared.layer && !matchMedia('(prefers-reduced-motion: reduce)').matches)
-  const [playing, setPlaying] = useState(intro)
+  const [playing, setPlaying] = useState(false)
   const [pinned, setPinned] = useState<Layer | null>(null)
   const [relief, setRelief] = useState(false)
   const [panelOpen, setPanelOpen] = useState(true)
@@ -62,25 +59,21 @@ export default function App() {
   const onDraw = useCallback((geometry: GeoJSON.Geometry) => setArea({ kind: 'drawn', geometry }), [])
   const onPoint = useCallback((lat: number, lon: number, r: number) => setArea({ kind: 'point', lat, lon, r }), [])
 
-  /** Qualquer escolha manual do período pausa o timelapse (e encerra a abertura). */
+  /** Qualquer escolha manual do período pausa o timelapse. */
   const setLayer = useCallback((l: Layer) => {
     setPlaying(false)
-    setIntro(false)
     setLayerRaw(l)
   }, [])
 
   const d = cal.data
 
-  // primeiro quadro: o período do link; senão o primeiro ano (abertura) ou direto o mês recorde
+  // primeiro quadro: o período do link; senão o mês recorde
   const started = useRef(false)
   useEffect(() => {
     if (!d || started.current) return
     started.current = true
-    if (shared.layer) return
-    if (!intro) return setLayerRaw({ year: d.summary.record_month.year, month: d.summary.record_month.month })
-    for (const year of d.years) void qc.prefetchQuery(gridQuery({ year, month: null }))
-    setLayerRaw({ year: d.years[0], month: null })
-  }, [d, shared.layer, intro, qc])
+    if (!shared.layer) setLayerRaw({ year: d.summary.record_month.year, month: d.summary.record_month.month })
+  }, [d, shared.layer])
 
   // o link acompanha a área e o período (parado: durante o timelapse não reescreve a cada passo)
   useEffect(() => {
@@ -105,29 +98,19 @@ export default function App() {
     if (!d) return
     const y0 = d.years[0]
     const [yEnd, mEnd] = d.data_until.split('-').map(Number)
-    if (intro) {
-      // a abertura passa os anos completos e pousa no mês recorde
-      if (layer.year != null && layer.year < yEnd - 1) return setLayerRaw({ year: layer.year + 1, month: null })
-      setIntro(false)
-      setPlaying(false)
-      return setLayerRaw({ year: d.summary.record_month.year, month: d.summary.record_month.month })
-    }
     const next = (l: Layer): Layer => {
       if (l.year == null) return { year: y0, month: 1 }
       if (l.month == null) return { year: l.year >= yEnd ? y0 : l.year + 1, month: null }
       const wrap = l.year > yEnd || (l.year === yEnd && l.month >= mEnd)
       return wrap ? { year: y0, month: 1 } : l.month === 12 ? { year: l.year + 1, month: 1 } : { year: l.year, month: l.month + 1 }
     }
-    const n = next(layer)
-    const ahead = next(n)
-    void qc.prefetchQuery(gridQuery(ahead))
-    setLayerRaw(n)
+    setLayerRaw(next(layer))
   }
   useEffect(() => {
     if (!playing) return
-    const id = setInterval(() => step.current(), intro ? INTRO_MS : STEP_MS)
+    const id = setInterval(() => step.current(), STEP_MS)
     return () => clearInterval(id)
-  }, [playing, intro])
+  }, [playing])
 
   return (
     <div className="app" data-panel={panelOpen ? 'open' : 'closed'}>

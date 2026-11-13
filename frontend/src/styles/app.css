@@ -175,6 +175,8 @@ h1, h2, p, dl, dd, dt, ol { margin: 0; padding: 0; font-weight: 400; }
 .tl-strip i { flex: 1; min-width: 0; pointer-events: none; opacity: 0.8; }
 /* destaque do período: uma faixa clara por cima das barras */
 .tl-lit { position: absolute; top: -6px; bottom: 0; min-width: 2px; background: rgba(237, 237, 238, 0.85); mix-blend-mode: overlay; box-shadow: 0 0 0 1px rgba(237, 237, 238, 0.5); pointer-events: none; }
+.tl-progress { position: absolute; top: 0; left: 0; height: 2px; background: var(--accent); transition: width 300ms linear; }
+.timeline [inert], .play:disabled { opacity: 0.35; cursor: default; }
 .tl-read { margin-left: auto; font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
 .tl-read b { font-family: var(--font-mono); font-weight: 500; color: var(--text-primary); }
 .tl-years { display: flex; font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }

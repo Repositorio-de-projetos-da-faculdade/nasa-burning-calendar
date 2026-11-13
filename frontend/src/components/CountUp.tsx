@@ -11,7 +11,7 @@ export function CountUp({ value }: { value: number }) {
     const a = from.current
     let raf = 0
     const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / 800)
+      const t = Math.min(1, (now - start) / 500)
       setShown(a + (value - a) * (1 - (1 - t) ** 3))
       if (t < 1) raf = requestAnimationFrame(tick)
     }

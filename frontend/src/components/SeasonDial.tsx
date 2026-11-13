@@ -11,7 +11,7 @@ const polar = (r: number, deg: number) => {
 }
 
 /** Relógio do ano: 12 fatias (jan no topo), raio e cor pela mediana de focos do mês. */
-export function SeasonDial({ climatology, season, size = 56 }: { climatology: Climatology[]; season: number[]; size?: number }) {
+export function SeasonDial({ climatology, season, size = 44 }: { climatology: Climatology[]; season: number[]; size?: number }) {
   const max = Math.max(1, ...climatology.map((c) => c.median))
   const scale = fireScale(max)
   const peak = climatology.reduce((a, b) => (b.median > a.median ? b : a))

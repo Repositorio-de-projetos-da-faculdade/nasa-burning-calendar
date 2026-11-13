@@ -127,9 +127,9 @@ export function FireCalendar({ data, mode, selected, onSelect }: Props) {
           Total anual
         </div>
 
-        {viirsYears.length > 0 && <div className="cal-era">VIIRS S-NPP · medido (375 m)</div>}
+        {viirsYears.length > 0 && <div className="cal-era">VIIRS S-NPP, medido (375 m)</div>}
         {viirsYears.map(row)}
-        {modisYears.length > 0 && <div className="cal-era">MODIS Aqua · convertido para equivalente VIIRS (1 km)</div>}
+        {modisYears.length > 0 && <div className="cal-era">MODIS Aqua, convertido para equivalente VIIRS (1 km)</div>}
         {modisYears.map((y, i) => row(y, viirsYears.length + i))}
 
         <div className="cal-sep" />

@@ -1,66 +1,47 @@
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react'
 import type { CalendarData } from '../lib/api'
-import { fmt, fmtPct, monthRange, MONTHS, MONTHS_LONG, ordinal } from '../lib/format'
+import { missingMonths } from '../lib/coverage'
+import { fmt, monthRange, MONTHS, MONTHS_LONG, ordinal } from '../lib/format'
+import { Badge } from './Badge'
+import { SeasonDial } from './SeasonDial'
 
-function tone(pct: number | null): { tone: string; label: string; Icon: typeof Minus } {
-  if (pct == null) return { tone: 'normal', label: 'sem referência', Icon: Minus }
-  if (pct >= 100) return { tone: 'critical', label: 'muito acima do normal', Icon: AlertTriangle }
-  if (pct >= 25) return { tone: 'serious', label: 'acima do normal', Icon: ArrowUpRight }
-  if (pct <= -25) return { tone: 'good', label: 'abaixo do normal', Icon: ArrowDownRight }
-  return { tone: 'normal', label: 'dentro do normal', Icon: Minus }
-}
-
-function Badge({ pct }: { pct: number | null }) {
-  const t = tone(pct)
-  return (
-    <span className="badge" data-tone={t.tone}>
-      <t.Icon size={13} />
-      <span className="num">{fmtPct(pct)}</span>
-      <span style={{ fontWeight: 500 }}>{t.label}</span>
-    </span>
-  )
-}
-
+/** O que não depende do período no mapa: o mês corrente, a temporada e o ano recorde da área. */
 export function Kpis({ data }: { data: CalendarData }) {
   const { current: c, ytd, summary: s } = data
   const partial = data.series.some((m) => m.partial)
+  const gap = missingMonths(data)
   return (
-    <div className="kpis">
-      <div className="kpi">
-        <span className="kpi-label">
-          {MONTHS_LONG[c.month - 1][0].toUpperCase() + MONTHS_LONG[c.month - 1].slice(1)} {c.year}
-          {partial ? ` · até dia ${c.day}` : ' · último mês'}
-        </span>
-        <span className="kpi-value num">{fmt(c.value)}</span>
-        <span className="kpi-foot">
+    <div className="block facts">
+      <section>
+        <h2 className="w-label">Agora, {MONTHS_LONG[c.month - 1]} de {c.year}</h2>
+        <p className="w-value num">{fmt(c.value)}</p>
+        <p className="w-foot">
           <Badge pct={c.anomaly_pct} />
-        </span>
-        <span className="kpi-foot">{partial ? 'esperado até esta data' : 'mediana do mês'}: {fmt(c.expected)}</span>
-      </div>
-      <div className="kpi">
-        <span className="kpi-label">Acumulado em {ytd.year}</span>
-        <span className="kpi-value num">{fmt(ytd.value)}</span>
-        <span className="kpi-foot">
-          <Badge pct={ytd.anomaly_pct} />
-        </span>
-        <span className="kpi-foot">
-          {ordinal(ytd.rank)} maior de {ytd.of} anos{partial ? ' até esta data' : ''}
-        </span>
-      </div>
-      <div className="kpi">
-        <span className="kpi-label">Temporada de fogo</span>
-        <span className="kpi-value">{monthRange(s.fire_season_months)}</span>
-        <span className="kpi-foot">concentra {fmt(s.season_share)}% dos focos de um ano típico</span>
-        <span className="kpi-foot">pico em {MONTHS_LONG[s.critical_months[0] - 1]}</span>
-      </div>
-      <div className="kpi">
-        <span className="kpi-label">Ano mais crítico</span>
-        <span className="kpi-value num">{s.peak_year ?? '—'}</span>
-        <span className="kpi-foot num">{fmt(s.peak_year_total)} focos no ano</span>
-        <span className="kpi-foot">
-          mês recorde: {MONTHS[s.record_month.month - 1]}/{s.record_month.year} ({fmt(s.record_month.value)})
-        </span>
-      </div>
+          {gap.length ? (
+            <>Sem dados de {monthRange(gap).toLowerCase()}; o acumulado do ano não é comparável</>
+          ) : (
+            <>
+              Acumulado no ano <b className="num">{fmt(ytd.value)}</b>, {ordinal(ytd.rank)} maior de {ytd.of} anos{partial ? ' até esta data' : ''}
+            </>
+          )}
+        </p>
+      </section>
+      <section>
+        <h2 className="w-label">Temporada de fogo</h2>
+        <p className="w-value">
+          {monthRange(s.fire_season_months)}
+          <SeasonDial climatology={data.climatology} season={s.fire_season_months} size={28} />
+        </p>
+        <p className="w-foot">
+          <b className="num">{fmt(s.season_share)}%</b> dos focos de um ano típico, pico em {MONTHS_LONG[s.critical_months[0] - 1]}
+        </p>
+      </section>
+      <section>
+        <h2 className="w-label">Ano mais crítico</h2>
+        <p className="w-value num">{s.peak_year ?? '—'}</p>
+        <p className="w-foot">
+          <b className="num">{fmt(s.peak_year_total)}</b> focos; mês recorde em {MONTHS[s.record_month.month - 1]}/{s.record_month.year}
+        </p>
+      </section>
     </div>
   )
 }

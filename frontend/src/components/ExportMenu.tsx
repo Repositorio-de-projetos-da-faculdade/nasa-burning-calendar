@@ -22,7 +22,7 @@ export function ExportMenu({ area, slug, defaultRange }: {
 
   return (
     <div style={{ position: 'relative' }}>
-      <button className="btn btn-primary" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+      <button className="btn" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
         <Download size={15} /> Exportar CSV
       </button>
       {open && (
@@ -46,8 +46,8 @@ export function ExportMenu({ area, slug, defaultRange }: {
               Cada foco MODIS/VIIRS dentro da área, com data, hora, satélite, confiança e FRP.
             </p>
             <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-              <input type="date" className="picker-input" style={{ paddingLeft: 8, height: 32 }} value={range.start} onChange={(e) => setRange({ ...range, start: e.target.value })} aria-label="Início" />
-              <input type="date" className="picker-input" style={{ paddingLeft: 8, height: 32 }} value={range.end} onChange={(e) => setRange({ ...range, end: e.target.value })} aria-label="Fim" />
+              <input type="date" className="picker-input" style={{ paddingLeft: 8 }} value={range.start} onChange={(e) => setRange({ ...range, start: e.target.value })} aria-label="Início" />
+              <input type="date" className="picker-input" style={{ paddingLeft: 8 }} value={range.end} onChange={(e) => setRange({ ...range, end: e.target.value })} aria-label="Fim" />
             </div>
             <button
               className="btn"

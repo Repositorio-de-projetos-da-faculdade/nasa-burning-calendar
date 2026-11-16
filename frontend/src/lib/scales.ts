@@ -1,73 +1,57 @@
 /**
- * Rampas de cor.
- * - FIRE: sequencial de um só matiz (laranja/brasa), escuro -> claro sobre fundo escuro:
- *   pouco fogo recua para o fundo, muito fogo "acende".
- * - DIVERGING: azul (abaixo do normal) <-> cinza neutro <-> vermelho (acima do normal).
+ * Escalas visuais. O calendário usa a mesma linguagem do mapa: um quadrado por valor,
+ * cujo tamanho cresce com os focos; a cor reforça com a rampa de calor (brasa = pouco, amarelo = extremo).
  */
-export const FIRE = [
-  '#2b1a12', '#43200f', '#5f2810', '#7f3110', '#a23c0f',
-  '#c44a12', '#e05e1d', '#f47b35', '#ff9d5c', '#ffc496',
-]
-export const EMPTY = '#1b1f26'
 
-export const DIVERGING = {
-  below: ['#0d366b', '#1c5cab', '#3987e5', '#86b6ef'], // muito abaixo -> pouco abaixo
-  mid: '#3a3b40',
-  above: ['#f2a39b', '#e66767', '#d03b3b', '#8f1d1d'], // pouco acima -> muito acima
+/** Número de classes do meio-tom do mapa. */
+export const LEVELS = 10
+
+/** Tinta da interface (espelha os tokens de app.css). */
+export const INK = {
+  hi: '#ededee', text: '#a1a1a6', muted: '#7c7c82', line: '#2c2c2f', grid: '#1b1b1d', surface: '#131314', bar: '#46464b',
 }
 
-export const SERIES = {
-  modis: '#3987e5',
-  viirs: '#199e70',
-  harmonized: '#d95926',
-  accent: '#ff7a2f',
+/** Séries dos gráficos: a referência em branco, o dado bruto em cinza, o que a análise produz em brasa. */
+export const SERIES = { modis: '#7c7c82', viirs: '#ededee', accent: '#ff6a1f' }
+
+/** Um valor desenhado: lado relativo (0..1) e cor. */
+export interface Mark {
+  size: number
+  color: string
 }
 
-export const STATUS = { good: '#0ca30c', warning: '#fab219', serious: '#ec835a', critical: '#d03b3b' }
+const QUIET = '#5c5c62'
+/** Rampa de calor, da brasa ao amarelo: a mesma no mapa, no calendário, na linha do tempo e nos anos. */
+export const HEAT = ['#8c2a1c', '#c93a1d', '#ff6a1f', '#ffa22e', '#ffe08a']
+export const heat = (t: number) => HEAT[Math.min(HEAT.length - 1, Math.max(0, Math.floor(t * HEAT.length)))]
+const fireColor = (t: number) => (t < 0.12 ? QUIET : heat(t))
 
-/** Escala sqrt quantizada em FIRE.length classes, com 0 = EMPTY. */
-export function fireScale(max: number) {
-  const n = FIRE.length
+/** Focos -> marca, em escala sqrt (a área do quadrado acompanha o valor). */
+export function fireMarks(max: number) {
   const top = Math.max(max, 1)
-  const color = (v: number) => {
-    if (!v || v <= 0) return EMPTY
-    const t = Math.sqrt(v / top)
-    return FIRE[Math.min(n - 1, Math.floor(t * n))]
+  const mark = (v: number): Mark => {
+    const t = Math.min(1, Math.sqrt(Math.max(v, 0) / top))
+    return { size: t, color: fireColor(t) }
   }
-  const breaks = FIRE.map((_, i) => Math.round(top * (i / n) ** 2))
-  return { color, breaks }
+  const legend = [0.1, 0.3, 0.5, 0.75, 1].map((t) => ({ mark: { size: t, color: fireColor(t) }, value: top * t * t }))
+  return { mark, legend }
 }
 
-/** Razão valor/mediana em escala log2, recortada em ±2 (¼× .. 4×). */
-export function anomalyColor(ratio: number | null) {
-  if (ratio == null || !isFinite(ratio)) return EMPTY
-  const l = Math.log2(Math.max(ratio, 1e-3))
-  if (Math.abs(l) < 0.25) return DIVERGING.mid
-  const steps = DIVERGING.below.length
-  const idx = Math.min(steps - 1, Math.floor(((Math.abs(l) - 0.25) / 1.75) * steps))
-  return l < 0 ? DIVERGING.below[steps - 1 - idx] : DIVERGING.above[idx]
+const BELOW = '#6ea8ff'
+const ABOVE = '#ff5a4a'
+
+/** Razão valor/mediana em log2, recortada em ±2 (¼× .. 4×): azul abaixo, vermelho acima, tamanho pela distância do normal. */
+export function anomalyMark(ratio: number | null): Mark {
+  if (ratio == null || !isFinite(ratio)) return { size: 0, color: QUIET }
+  const l = Math.max(-2, Math.min(2, Math.log2(Math.max(ratio, 1e-3))))
+  if (Math.abs(l) < 0.25) return { size: 0.12, color: QUIET }
+  return { size: 0.2 + 0.8 * (Math.abs(l) / 2), color: l < 0 ? BELOW : ABOVE }
 }
 
 export const ANOMALY_LEGEND = [
-  { label: '≤¼×', color: DIVERGING.below[0] },
-  { label: '', color: DIVERGING.below[1] },
-  { label: '½×', color: DIVERGING.below[2] },
-  { label: '', color: DIVERGING.below[3] },
-  { label: 'normal', color: DIVERGING.mid },
-  { label: '', color: DIVERGING.above[0] },
-  { label: '2×', color: DIVERGING.above[1] },
-  { label: '', color: DIVERGING.above[2] },
-  { label: '≥4×', color: DIVERGING.above[3] },
+  { label: '≤¼×', mark: anomalyMark(0.25) },
+  { label: '½×', mark: anomalyMark(0.5) },
+  { label: '1×', mark: anomalyMark(1) },
+  { label: '2×', mark: anomalyMark(2) },
+  { label: '≥4×', mark: anomalyMark(4) },
 ]
-
-/** Expressão MapLibre: cor por classes de quantil (breaks crescentes, um a menos que FIRE). */
-export function fireQuantileExpression(breaks: number[]): unknown[] {
-  const expr: unknown[] = ['step', ['get', 'v'], FIRE[0]]
-  let last = -Infinity
-  breaks.forEach((b, i) => {
-    const v = b > last ? b : last + 1e-6 // step exige valores estritamente crescentes
-    expr.push(v, FIRE[i + 1])
-    last = v
-  })
-  return expr
-}

@@ -1,23 +1,12 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { Flame } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
-import { AnnualChart, SeasonChart, ValidationChart } from './components/Charts'
-import { ExportMenu } from './components/ExportMenu'
-import { type CalMode, FireCalendar } from './components/FireCalendar'
-import { Kpis } from './components/Kpis'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Dossier } from './components/Dossier'
+import type { CalMode } from './components/FireCalendar'
 import { type Layer, MapPanel } from './components/MapPanel'
-import { RegionPicker } from './components/RegionPicker'
-import { api, type AreaQuery, type CalendarData } from './lib/api'
-import { fmt, fmtDate, fmtPct } from './lib/format'
-
-type Area =
-  | { kind: 'region'; id: string }
-  | { kind: 'drawn'; geometry: GeoJSON.Geometry }
-  | { kind: 'point'; lat: number; lon: number; r: number }
-
-const KIND_LABEL: Record<string, string> = {
-  biome: 'Bioma', state: 'Estado', municipality: 'Município', drawn: 'Área desenhada', point: 'Raio', bbox: 'Retângulo',
-}
+import { Timeline } from './components/Timeline'
+import { TopBar } from './components/TopBar'
+import { api, type AreaQuery, gridQuery } from './lib/api'
+import { type Area, readShare, writeShare } from './lib/share'
 
 function toQuery(a: Area): AreaQuery {
   if (a.kind === 'region') return { region: a.id }
@@ -34,11 +23,18 @@ function circle(lat: number, lon: number, rKm: number): GeoJSON.Geometry {
   return { type: 'Polygon', coordinates: [pts] }
 }
 
+const STEP_MS = 900
+
 export default function App() {
-  const [area, setArea] = useState<Area>({ kind: 'region', id: 'amazonia' })
+  const [shared] = useState(readShare)
+  const [area, setArea] = useState<Area>(shared.area ?? { kind: 'region', id: 'amazonia' })
   const [mode, setMode] = useState<CalMode>('count')
-  const [layer, setLayer] = useState<Layer>({ year: null, month: null })
-  const [selected, setSelected] = useState<{ year: number; month: number } | null>(null)
+  const [layer, setLayerRaw] = useState<Layer>(shared.layer ?? { year: null, month: null })
+  const [playing, setPlaying] = useState(false)
+  const [pinned, setPinned] = useState<Layer | null>(null)
+  const [relief, setRelief] = useState(false)
+  const [panelOpen, setPanelOpen] = useState(true)
+  const qc = useQueryClient()
 
   const query = useMemo(() => toQuery(area), [area])
   const regions = useQuery({ queryKey: ['regions'], queryFn: api.regions, staleTime: Infinity })
@@ -58,192 +54,102 @@ export default function App() {
   }, [area, regionFeature.data])
 
   const onRegion = useCallback((id: string) => setArea({ kind: 'region', id }), [])
+  const onReset = useCallback(() => setArea({ kind: 'region', id: 'amazonia' }), [])
   const onDraw = useCallback((geometry: GeoJSON.Geometry) => setArea({ kind: 'drawn', geometry }), [])
   const onPoint = useCallback((lat: number, lon: number, r: number) => setArea({ kind: 'point', lat, lon, r }), [])
 
+  /** Qualquer escolha manual do período pausa o timelapse. */
+  const setLayer = useCallback((l: Layer) => {
+    setPlaying(false)
+    setLayerRaw(l)
+  }, [])
+
   const d = cal.data
-  const yearRange: [number, number] = d ? [d.years[0], d.years[d.years.length - 1]] : [2002, new Date().getFullYear()]
+
+  // primeiro quadro: o período do link; senão o mês recorde
+  const started = useRef(false)
+  useEffect(() => {
+    if (!d || started.current) return
+    started.current = true
+    if (!shared.layer) setLayerRaw({ year: d.summary.record_month.year, month: d.summary.record_month.month })
+  }, [d, shared.layer])
+
+  // o link acompanha a área e o período (parado: durante o timelapse não reescreve a cada passo)
+  useEffect(() => {
+    if (playing) return
+    const id = setTimeout(() => writeShare(area, layer), 300)
+    return () => clearTimeout(id)
+  }, [area, layer, playing])
+
+  // o ano inteiro do período (e os anos vizinhos, no modo anual) já em cache: arrastar não espera a rede
+  useEffect(() => {
+    const { year, month } = layer
+    if (year == null) return
+    const near: Layer[] = month == null
+      ? [{ year: year - 1, month }, { year: year + 1, month }]
+      : Array.from({ length: 12 }, (_, i) => ({ year, month: i + 1 }))
+    for (const n of near) void qc.prefetchQuery(gridQuery(n))
+  }, [layer.year, layer.month == null, qc]) // eslint-disable-line react-hooks/exhaustive-deps -- só ao trocar de ano ou de modo
+
+  // timelapse: um mês (ou um ano) por passo, em laço
+  const step = useRef(() => {})
+  step.current = () => {
+    if (!d) return
+    const y0 = d.years[0]
+    const [yEnd, mEnd] = d.data_until.split('-').map(Number)
+    const next = (l: Layer): Layer => {
+      if (l.year == null) return { year: y0, month: 1 }
+      if (l.month == null) return { year: l.year >= yEnd ? y0 : l.year + 1, month: null }
+      const wrap = l.year > yEnd || (l.year === yEnd && l.month >= mEnd)
+      return wrap ? { year: y0, month: 1 } : l.month === 12 ? { year: l.year + 1, month: 1 } : { year: l.year, month: l.month + 1 }
+    }
+    setLayerRaw(next(layer))
+  }
+  useEffect(() => {
+    if (!playing) return
+    const id = setInterval(() => step.current(), STEP_MS)
+    return () => clearInterval(id)
+  }, [playing])
 
   return (
-    <div className="app">
-      <header className="header">
-        <div className="brand">
-          <div className="brand-mark"><Flame size={18} color="#1a0d05" strokeWidth={2.5} /></div>
-          <div className="brand-name">FireCal <span>Amazônia</span></div>
-        </div>
-        <RegionPicker regions={regions.data ?? []} value={area.kind === 'region' ? area.id : ''} onChange={onRegion} />
-        <div className="header-meta">
-          {d && (
-            <span className="pill">
-              <span className="live-dot" />
-              Dados até {fmtDate(d.data_until)}
-            </span>
-          )}
-          <span>NASA FIRMS · MODIS Aqua + VIIRS S-NPP</span>
-        </div>
-      </header>
-
-      <div className="main">
-        <MapPanel
-          selection={selection}
-          layer={layer}
-          setLayer={setLayer}
-          yearRange={yearRange}
-          onRegion={onRegion}
-          onDraw={onDraw}
-          onPoint={onPoint}
-        />
-
-        <main className="analytics" style={{ position: 'relative' }}>
-          {cal.isFetching && <div className="loading-bar" />}
-          <div className="analytics-inner">
-            {cal.isError && <div className="error-box">Não foi possível calcular esta área: {cal.error.message}</div>}
-            {!d && !cal.isError && <Skeleton />}
-            {d && (
-              <Dashboard
-                d={d}
-                query={query}
-                mode={mode}
-                setMode={setMode}
-                selected={selected}
-                onCell={(year, month) => {
-                  setSelected({ year, month })
-                  setLayer({ year, month })
-                }}
-                onYear={(year) => setLayer({ year, month: null })}
-              />
-            )}
-            {validation.data && <MethodSection v={validation.data} />}
-            <p className="footnote">
-              Fonte: NASA FIRMS (MODIS C6.1 e VIIRS 375 m, Standard Processing + NRT). Limites: INPE/TerraBrasilis
-              (PRODES). Focos de calor indicam fogo ativo no momento da passagem do satélite; nuvens e fumaça densa podem
-              ocultar detecções.
-            </p>
+    <div className="app" data-panel={panelOpen ? 'open' : 'closed'}>
+      <div className="stage">
+        <MapPanel selection={selection} layer={layer} pinned={pinned} relief={relief} onRegion={onRegion} onDraw={onDraw} onPoint={onPoint} onReset={area.kind === 'region' && area.id === 'amazonia' ? undefined : onReset} />
+        <TopBar regions={regions.data ?? []} value={area.kind === 'region' ? area.id : ''} onRegion={onRegion} />
+        {d && (
+          <div className="dock">
+            <Timeline
+              d={d}
+              layer={layer}
+              setLayer={setLayer}
+              playing={playing}
+              setPlaying={setPlaying}
+              pinned={pinned}
+              onPin={() => {
+                setRelief(false)
+                setPinned(pinned ? null : layer)
+              }}
+              relief={relief}
+              onRelief={() => {
+                setPinned(null)
+                setRelief(!relief)
+              }}
+            />
           </div>
-        </main>
+        )}
       </div>
+
+      <Dossier
+        cal={cal}
+        validation={validation.data}
+        query={query}
+        mode={mode}
+        setMode={setMode}
+        layer={layer}
+        setLayer={setLayer}
+        open={panelOpen}
+        setOpen={setPanelOpen}
+      />
     </div>
-  )
-}
-
-function Dashboard({ d, query, mode, setMode, selected, onCell, onYear }: {
-  d: CalendarData
-  query: AreaQuery
-  mode: CalMode
-  setMode: (m: CalMode) => void
-  selected: { year: number; month: number } | null
-  onCell: (y: number, m: number) => void
-  onYear: (y: number) => void
-}) {
-  const slug = ('region' in query ? query.region : 'area').replace(/[^a-z0-9-]/gi, '_')
-  const until = d.data_until
-  const start = `${until.slice(0, 4)}-01-01`
-  return (
-    <>
-      <div className="area-head">
-        <div>
-          <div className="eyebrow">Calendário de queimadas</div>
-          <h1 className="area-title">{d.area.name}</h1>
-          <div className="area-sub num">
-            {KIND_LABEL[d.area.kind] ?? d.area.kind}
-            {d.area.uf && d.area.kind === 'municipality' ? ` · ${d.area.uf}` : ''} · {fmt(d.area.area_km2)} km² ·{' '}
-            {d.years[0]}–{d.years[d.years.length - 1]} · {fmt(d.summary.total)} focos harmonizados
-          </div>
-        </div>
-        <ExportMenu area={query} slug={slug} defaultRange={{ start, end: until }} />
-      </div>
-
-      <Kpis data={d} />
-
-      <section className="section">
-        <div className="section-head">
-          <div>
-            <h2 className="section-title">Quando queima: focos por mês, {d.years[0]}–{d.years[d.years.length - 1]}</h2>
-            <p className="section-desc">
-              Cada célula é um mês. Uma única série consistente: VIIRS medido desde 2012 e MODIS convertido para a mesma
-              escala antes disso. Clique em um mês para vê-lo no mapa.
-            </p>
-          </div>
-          <div className="seg">
-            <button data-active={mode === 'count'} onClick={() => setMode('count')}>Nº de focos</button>
-            <button data-active={mode === 'anomaly'} onClick={() => setMode('anomaly')}>Anomalia</button>
-          </div>
-        </div>
-        <FireCalendar data={d} mode={mode} selected={selected} onSelect={onCell} />
-      </section>
-
-      <div className="two-col">
-        <section className="section">
-          <div className="section-head">
-            <div>
-              <h2 className="section-title">{d.current.year} contra o histórico</h2>
-              <p className="section-desc">
-                Mês a mês, comparado à mediana e à faixa típica de {d.baseline[0]}–{d.baseline[1]}.
-                {d.ytd.anomaly_pct != null && <> Acumulado no ano: <b className="num">{fmtPct(d.ytd.anomaly_pct)}</b>.</>}
-              </p>
-            </div>
-          </div>
-          <SeasonChart data={d} />
-        </section>
-        <section className="section">
-          <div className="section-head">
-            <div>
-              <h2 className="section-title">Quais anos queimaram mais</h2>
-              <p className="section-desc">Total anual harmonizado. Hachurado: anos MODIS convertidos. Clique para ver o ano no mapa.</p>
-            </div>
-          </div>
-          <AnnualChart data={d} onPick={onYear} />
-        </section>
-      </div>
-    </>
-  )
-}
-
-function MethodSection({ v }: { v: import('./lib/api').ValidationData }) {
-  const m = v.metrics
-  return (
-    <section className="section">
-      <div className="section-head">
-        <div>
-          <div className="eyebrow">Metodologia</div>
-          <h2 className="section-title">Como MODIS e VIIRS viram uma série só</h2>
-          <p className="section-desc">
-            O VIIRS enxerga pixels de 375 m e detecta cerca de {m.ratio_viirs_modis?.toLocaleString('pt-BR')}× mais focos que o
-            MODIS (1 km) no mesmo fogo. Sem harmonização, a série teria um salto falso em 2012.
-          </p>
-        </div>
-      </div>
-      <div className="steps">
-        {[
-          ['Filtrar', 'Só focos de vegetação com confiança nominal ou alta; fontes industriais e vulcânicas fora.'],
-          ['Alinhar', 'Um satélite por sensor com o mesmo horário de passagem (~13h30): Aqua e S-NPP.'],
-          ['Calibrar', `Fator VIIRS/MODIS por bloco de 2° e mês do ano, ajustado em ${v.calibration_years[0]}–${v.calibration_years[1]}.`],
-          ['Converter', 'MODIS 2002–2011 × fator = focos equivalentes VIIRS. Daí em diante, VIIRS medido.'],
-        ].map(([t, p], i) => (
-          <div className="step" key={t}>
-            <span className="step-n">0{i + 1}</span>
-            <b>{t}</b>
-            <p>{p}</p>
-          </div>
-        ))}
-      </div>
-      <ValidationChart data={v} />
-      <div className="metrics">
-        <div className="metric"><span>Correlação mensal</span><b className="num">{m.corr_harmonized?.toFixed(2) ?? '—'}</b></div>
-        <div className="metric"><span>Correlação fora da amostra</span><b className="num">{m.corr_out_of_sample?.toFixed(2) ?? '—'}</b></div>
-        <div className="metric"><span>Viés MODIS bruto</span><b className="num">{fmtPct(m.bias_raw_pct)}</b></div>
-        <div className="metric"><span>Viés após harmonizar</span><b className="num" style={{ color: 'var(--accent)' }}>{fmtPct(m.bias_harmonized_pct)}</b></div>
-      </div>
-    </section>
-  )
-}
-
-function Skeleton() {
-  return (
-    <>
-      <div className="skeleton" style={{ height: 70 }} />
-      <div className="kpis">{[0, 1, 2, 3].map((i) => <div key={i} className="skeleton" style={{ height: 120 }} />)}</div>
-      <div className="skeleton" style={{ height: 560 }} />
-    </>
   )
 }

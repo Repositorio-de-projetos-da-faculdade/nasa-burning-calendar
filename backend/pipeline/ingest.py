@@ -1,4 +1,4 @@
-"""CSV brutos -> Parquet normalizado (data/processed/hotspots/sensor=*/year=*)."""
+"""Raw CSVs -> normalized Parquet (data/processed/hotspots/sensor=*/year=*)."""
 
 from __future__ import annotations
 
@@ -31,12 +31,12 @@ def _sat_case() -> str:
     return f"CASE trim(satellite) {whens} ELSE trim(satellite) END"
 
 
-CLIP_DEG = 0.02  # resolucao do recorte (~2 km)
+CLIP_DEG = 0.02  # clip resolution (~2 km)
 
 
 def _clip_to_boundary(con: duckdb.DuckDBPyConnection, boundary: Path, t0: float) -> None:
-    """Recorte pelo limite: marca uma grade fina (~2 km) como dentro/fora pelo centro
-    da celula e filtra os focos com um unico join de inteiros."""
+    """Clip to the boundary: mark a fine grid (~2 km) as inside/outside by the cell
+    center and filter the hotspots with a single integer join."""
     feats = json.loads(boundary.read_text("utf-8"))["features"]
     aoi = shapely.make_valid(shapely.union_all([shape(f["geometry"]) for f in feats]))
     shapely.prepare(aoi)
@@ -46,7 +46,7 @@ def _clip_to_boundary(con: duckdb.DuckDBPyConnection, boundary: Path, t0: float)
     ys = np.arange(math.floor(s / c), math.floor(n / c) + 1, dtype="int32")
     cx, cy = (a.ravel() for a in np.meshgrid(xs, ys))
     keep = shapely.contains_xy(aoi, (cx + 0.5) * c, (cy + 0.5) * c)
-    _log(t0, f"mascara do bioma: {int(keep.sum()):,} de {len(keep):,} celulas de {c} graus")
+    _log(t0, f"biome mask: {int(keep.sum()):,} of {len(keep):,} cells of {c} degrees")
     con.register("mask_src", pa.table({"mx": cx[keep], "my": cy[keep]}))
     con.execute("CREATE TEMP TABLE mask AS SELECT * FROM mask_src")
     con.execute(f"""
@@ -108,7 +108,7 @@ def ingest(settings: Settings) -> dict[str, int]:
                           filename = true, header = true)
         """)
     if not selects:
-        raise RuntimeError(f"Nenhum CSV em {raw}. Rode `firecal download` primeiro.")
+        raise RuntimeError(f"No CSV in {raw}. Run `firecal download` first.")
 
     con.execute(f"""
         CREATE TEMP TABLE hs AS
@@ -116,15 +116,15 @@ def ingest(settings: Settings) -> dict[str, int]:
         WHERE lon BETWEEN {w} AND {e} AND lat BETWEEN {s} AND {n}
     """)
 
-    _log(t0, f"csv lidos: {con.execute('SELECT count(*) FROM hs').fetchone()[0]:,} focos no envelope")
-    # A API so complementa o que os arquivos anuais ainda nao cobrem
+    _log(t0, f"csv read: {con.execute('SELECT count(*) FROM hs').fetchone()[0]:,} hotspots in the bbox")
+    # The API only fills in what the yearly files do not cover yet
     con.execute("""
         DELETE FROM hs USING (
             SELECT sensor, max(acq_date) AS d FROM hs WHERE origin = 'country' GROUP BY sensor
         ) c
         WHERE hs.sensor = c.sensor AND hs.origin <> 'country' AND hs.acq_date <= c.d
     """)
-    # api e live (e snapshots live entre si) se sobrepoem: fica uma deteccao so
+    # api and live (and live snapshots among themselves) overlap: keep a single detection
     con.execute("""
         CREATE OR REPLACE TEMP TABLE hs AS
         SELECT * FROM hs WHERE origin = 'country'
@@ -135,7 +135,7 @@ def ingest(settings: Settings) -> dict[str, int]:
 
     if settings.boundary_path:
         _clip_to_boundary(con, settings.boundary_path, t0)
-        _log(t0, f"recorte pelo bioma: {con.execute('SELECT count(*) FROM hs').fetchone()[0]:,} focos")
+        _log(t0, f"clipped to the biome: {con.execute('SELECT count(*) FROM hs').fetchone()[0]:,} hotspots")
 
     if out.exists():
         shutil.rmtree(out)
@@ -150,7 +150,7 @@ def ingest(settings: Settings) -> dict[str, int]:
             FROM hs
         ) TO '{out.as_posix()}' (FORMAT parquet, PARTITION_BY (sensor, year), COMPRESSION zstd)
     """)
-    _log(t0, "parquet gravado")
+    _log(t0, "parquet written")
     rows = con.execute(
         "SELECT sensor, count(*) FROM hs GROUP BY sensor ORDER BY sensor"
     ).fetchall()

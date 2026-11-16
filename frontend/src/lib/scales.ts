@@ -1,32 +1,32 @@
 /**
- * Escalas visuais. O calendário usa a mesma linguagem do mapa: um quadrado por valor,
- * cujo tamanho cresce com os focos; a cor reforça com a rampa de calor (brasa = pouco, amarelo = extremo).
+ * Visual scales. The calendar speaks the same language as the map: one square per value,
+ * whose size grows with the hotspots; color reinforces it with the heat ramp (ember = few, yellow = extreme).
  */
 
-/** Número de classes do meio-tom do mapa. */
+/** Number of classes in the map's halftone. */
 export const LEVELS = 10
 
-/** Tinta da interface (espelha os tokens de app.css). */
+/** Interface ink (mirrors the tokens in app.css). */
 export const INK = {
   hi: '#ededee', text: '#a1a1a6', muted: '#7c7c82', line: '#2c2c2f', grid: '#1b1b1d', surface: '#131314', bar: '#46464b',
 }
 
-/** Séries dos gráficos: a referência em branco, o dado bruto em cinza, o que a análise produz em brasa. */
+/** Chart series: the reference in white, the raw data in gray, what the analysis produces in ember. */
 export const SERIES = { modis: '#7c7c82', viirs: '#ededee', accent: '#ff6a1f' }
 
-/** Um valor desenhado: lado relativo (0..1) e cor. */
+/** A drawn value: relative side (0..1) and color. */
 export interface Mark {
   size: number
   color: string
 }
 
 const QUIET = '#5c5c62'
-/** Rampa de calor, da brasa ao amarelo: a mesma no mapa, no calendário, na linha do tempo e nos anos. */
+/** Heat ramp, from ember to yellow: the same on the map, the calendar, the timeline and the years. */
 export const HEAT = ['#8c2a1c', '#c93a1d', '#ff6a1f', '#ffa22e', '#ffe08a']
 export const heat = (t: number) => HEAT[Math.min(HEAT.length - 1, Math.max(0, Math.floor(t * HEAT.length)))]
 const fireColor = (t: number) => (t < 0.12 ? QUIET : heat(t))
 
-/** Focos -> marca, em escala sqrt (a área do quadrado acompanha o valor). */
+/** Hotspots -> mark, on a sqrt scale (the square's area follows the value). */
 export function fireMarks(max: number) {
   const top = Math.max(max, 1)
   const mark = (v: number): Mark => {
@@ -40,7 +40,7 @@ export function fireMarks(max: number) {
 const BELOW = '#6ea8ff'
 const ABOVE = '#ff5a4a'
 
-/** Razão valor/mediana em log2, recortada em ±2 (¼× .. 4×): azul abaixo, vermelho acima, tamanho pela distância do normal. */
+/** Value/median ratio in log2, clamped to ±2 (¼× .. 4×): blue below, red above, size by the distance from normal. */
 export function anomalyMark(ratio: number | null): Mark {
   if (ratio == null || !isFinite(ratio)) return { size: 0, color: QUIET }
   const l = Math.max(-2, Math.min(2, Math.log2(Math.max(ratio, 1e-3))))

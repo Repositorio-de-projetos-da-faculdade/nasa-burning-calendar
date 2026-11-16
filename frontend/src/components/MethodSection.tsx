@@ -5,24 +5,24 @@ import { ValidationChart } from './Charts'
 export function MethodSection({ v }: { v: ValidationData }) {
   const m = v.metrics
   const steps = [
-    ['Filtrar', 'Só focos de vegetação com confiança nominal ou alta; fontes industriais e vulcânicas fora.'],
-    ['Alinhar', 'Um satélite por sensor com o mesmo horário de passagem (~13h30): Aqua e S-NPP.'],
-    ['Calibrar', `Fator VIIRS/MODIS por bloco de 2° e mês do ano, ajustado de ${v.calibration_years[0]} a ${v.calibration_years[1]}.`],
-    ['Converter', 'MODIS de 2002 a 2011 × fator = focos equivalentes VIIRS. Daí em diante, VIIRS medido.'],
+    ['Filter', 'Only vegetation hotspots with nominal or high confidence; industrial and volcanic sources removed.'],
+    ['Align', 'One satellite per sensor with the same overpass time (~13:30): Aqua and S-NPP.'],
+    ['Calibrate', `VIIRS/MODIS factor per 2° tile and month of the year, fitted from ${v.calibration_years[0]} to ${v.calibration_years[1]}.`],
+    ['Convert', 'MODIS from 2002 to 2011 × factor = VIIRS equivalent hotspots. From then on, measured VIIRS.'],
   ]
   const metrics: [string, string, boolean?][] = [
-    ['Correlação mensal', m.corr_harmonized?.toFixed(2) ?? '—'],
-    ['Correlação fora da amostra', m.corr_out_of_sample?.toFixed(2) ?? '—'],
-    ['Viés MODIS bruto', fmtPct(m.bias_raw_pct)],
-    ['Viés após harmonizar', fmtPct(m.bias_harmonized_pct), true],
+    ['Monthly correlation', m.corr_harmonized?.toFixed(2) ?? '—'],
+    ['Out-of-sample correlation', m.corr_out_of_sample?.toFixed(2) ?? '—'],
+    ['Raw MODIS bias', fmtPct(m.bias_raw_pct)],
+    ['Bias after harmonizing', fmtPct(m.bias_harmonized_pct), true],
   ]
   return (
     <>
       <section className="block">
-        <h2 className="w-title">Como MODIS e VIIRS viram uma série só</h2>
+        <h2 className="w-title">How MODIS and VIIRS become a single series</h2>
         <p className="w-desc">
-          O VIIRS enxerga pixels de 375 m e detecta cerca de {m.ratio_viirs_modis?.toLocaleString('pt-BR')}× mais focos que o
-          MODIS (1 km) no mesmo fogo. Sem harmonização, a série teria um salto falso em 2012.
+          VIIRS sees 375 m pixels and detects about {m.ratio_viirs_modis?.toLocaleString('en-US')}× more hotspots than
+          MODIS (1 km) on the same fire. Without harmonization, the series would show a false jump in 2012.
         </p>
         <ol className="steps">
           {steps.map(([t, p]) => (
@@ -35,8 +35,8 @@ export function MethodSection({ v }: { v: ValidationData }) {
       </section>
 
       <section className="block">
-        <h2 className="w-title">A série convertida contra a medida</h2>
-        <p className="w-desc">No período em que os dois sensores voaram juntos, o MODIS harmonizado acompanha o VIIRS.</p>
+        <h2 className="w-title">The converted series against the measured one</h2>
+        <p className="w-desc">Over the period when both sensors flew together, the harmonized MODIS tracks VIIRS.</p>
         <ValidationChart data={v} />
       </section>
 

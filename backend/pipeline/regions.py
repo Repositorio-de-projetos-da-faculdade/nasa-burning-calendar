@@ -1,8 +1,8 @@
-"""Limites oficiais (INPE/TerraBrasilis, PRODES): bioma Amazonia, estados e municipios.
+"""Official boundaries (INPE/TerraBrasilis, PRODES): Amazon biome, states and municipalities.
 
-Gera:
-  data/boundaries/amazonia.geojson  limite do bioma em resolucao cheia (recorte do ingest)
-  data/processed/regions.geojson    bioma + UFs + municipios simplificados (API/mapa)
+Builds:
+  data/boundaries/amazonia.geojson  biome boundary at full resolution (used by the ingest clip)
+  data/processed/regions.geojson    simplified biome + states + municipalities (API/map)
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ LAYERS = {
     "states": "prodes-amazon-nb:states_amazon_biome",
     "municipalities": "prodes-amazon-nb:municipalities_amazon_biome",
 }
-UF_BY_CODE = {
+STATE_BY_CODE = {
     "11": "RO", "12": "AC", "13": "AM", "14": "RR", "15": "PA", "16": "AP",
     "17": "TO", "21": "MA", "51": "MT",
 }
@@ -43,14 +43,14 @@ def _fetch(boundaries: Path) -> dict[str, dict]:
     return out
 
 
-def _feat(rid: str, name: str, kind: str, geom, tol: float, uf: str | None = None) -> dict:
+def _feat(rid: str, name: str, kind: str, geom, tol: float, state: str | None = None) -> dict:
     g = shapely.simplify(geom, tol, preserve_topology=True)
     g = shapely.set_precision(g, 1e-4)
     return {
         "type": "Feature",
         "id": rid,
         "properties": {
-            "id": rid, "name": name, "kind": kind, "uf": uf,
+            "id": rid, "name": name, "kind": kind, "state": state,
             "bbox": [round(v, 4) for v in geom.bounds],
         },
         "geometry": mapping(g),
@@ -67,22 +67,22 @@ def build_regions(data_dir: Path) -> int:
     biome = shapely.make_valid(biome)
     (boundaries / "amazonia.geojson").write_text(
         json.dumps({"type": "FeatureCollection", "features": [
-            {"type": "Feature", "properties": {"name": "Amazônia"}, "geometry": mapping(biome)}
+            {"type": "Feature", "properties": {"name": "Amazonia"}, "geometry": mapping(biome)}
         ]}),
         "utf-8",
     )
 
-    feats = [_feat("amazonia", "Amazônia (bioma)", "biome", biome, 0.02)]
+    feats = [_feat("amazonia", "Amazon biome", "biome", biome, 0.02)]
     for f in src["states"]["features"]:
-        p = f["properties"]
-        feats.append(_feat(f"uf-{p['sigla']}", p["nome"], "state",
+        p = f["properties"]  # INPE's own (Portuguese) attribute names: sigla = state code, nome = name
+        feats.append(_feat(f"state-{p['sigla']}", p["nome"], "state",
                            shapely.make_valid(shape(f["geometry"])), 0.01, p["sigla"]))
     for f in src["municipalities"]["features"]:
         p = f["properties"]
         code = str(p["geocodigo"])
         feats.append(_feat(f"mun-{code}", p["nome"], "municipality",
                            shapely.make_valid(shape(f["geometry"])), 0.005,
-                           UF_BY_CODE.get(code[:2])))
+                           STATE_BY_CODE.get(code[:2])))
 
     processed.mkdir(parents=True, exist_ok=True)
     (processed / "regions.geojson").write_text(

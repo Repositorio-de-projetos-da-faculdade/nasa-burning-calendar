@@ -7,7 +7,7 @@ from .config import get_settings
 
 app = FastAPI(
     title="FireCal Amazonia",
-    description="Calendario harmonizado de focos de calor MODIS + VIIRS (NASA FIRMS).",
+    description="Harmonized MODIS + VIIRS fire hotspot calendar (NASA FIRMS).",
     version="0.1.0",
 )
 app.add_middleware(

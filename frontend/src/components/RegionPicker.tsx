@@ -2,7 +2,7 @@ import { Search } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import type { Region } from '../lib/api'
 
-const KIND_LABEL = { biome: 'Bioma', state: 'Estados', municipality: 'Municípios' } as const
+const KIND_LABEL = { biome: 'Biome', state: 'States', municipality: 'Municipalities' } as const
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
 export function RegionPicker({ regions, value, onChange }: {
@@ -17,10 +17,10 @@ export function RegionPicker({ regions, value, onChange }: {
 
   const results = useMemo(() => {
     const nq = norm(q.trim())
-    const match = regions.filter((r) => !nq || norm(r.name).includes(nq) || (r.uf && norm(r.uf) === nq))
+    const match = regions.filter((r) => !nq || norm(r.name).includes(nq) || (r.state && norm(r.state) === nq))
     const order = { biome: 0, state: 1, municipality: 2 }
     return match
-      .sort((a, b) => order[a.kind] - order[b.kind] || a.name.localeCompare(b.name, 'pt-BR'))
+      .sort((a, b) => order[a.kind] - order[b.kind] || a.name.localeCompare(b.name, 'en'))
       .slice(0, nq ? 60 : 14)
   }, [q, regions])
 
@@ -37,7 +37,7 @@ export function RegionPicker({ regions, value, onChange }: {
       <input
         ref={input}
         className="picker-input"
-        placeholder={value ? 'Buscar município ou estado da Amazônia…' : 'Buscar…'}
+        placeholder={value ? 'Search an Amazon municipality or state…' : 'Search…'}
         value={q}
         onChange={(e) => {
           setQ(e.target.value)
@@ -54,7 +54,7 @@ export function RegionPicker({ regions, value, onChange }: {
         }}
         role="combobox"
         aria-expanded={open}
-        aria-label="Buscar região"
+        aria-label="Search region"
       />
       {open && results.length > 0 && (
         <div className="picker-list" role="listbox">
@@ -73,7 +73,7 @@ export function RegionPicker({ regions, value, onChange }: {
                 }}
               >
                 <span>{r.name}</span>
-                <small>{r.kind === 'municipality' ? r.uf : r.kind === 'state' ? r.uf : ''}</small>
+                <small>{r.kind === 'municipality' ? r.state : r.kind === 'state' ? r.state : ''}</small>
               </div>
             </div>
           ))}

@@ -1,8 +1,8 @@
-"""Download dos focos FIRMS.
+"""Download of FIRMS hotspots.
 
-1. Historico: arquivos anuais por pais (sem MAP_KEY), 2000 ate o ultimo ano consolidado.
-2. Lacuna recente: Area API (precisa de MAP_KEY), em janelas de 5 dias, SP quando
-   disponivel e NRT para o periodo ainda nao consolidado.
+1. History: yearly per-country files (no MAP_KEY), 2000 up to the last consolidated year.
+2. Recent gap: Area API (needs MAP_KEY), in 5-day windows, SP when available
+   and NRT for the period not yet consolidated.
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ TIMEOUT = httpx.Timeout(60.0, read=300.0)
 
 
 def _stream_to_file(client: httpx.Client, url: str, dest: Path) -> str:
-    """Baixa url -> dest de forma atomica. Retorna 'ok', 'skip' ou 'missing'."""
+    """Downloads url -> dest atomically. Returns 'ok', 'skip' or 'missing'."""
     if dest.exists() and dest.stat().st_size > 0:
         return "skip"
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -78,12 +78,12 @@ def download_country_files(
                     stats[fut.result()] += 1
                 except Exception as exc:  # noqa: BLE001
                     stats["error"] += 1
-                    tqdm.write(f"ERRO {futs[fut][0]}: {exc}")
+                    tqdm.write(f"ERROR {futs[fut][0]}: {exc}")
     return stats
 
 
 def last_country_date(raw_dir: Path, key: str) -> date | None:
-    """Ultima data presente nos arquivos anuais (le so o fim do arquivo mais recente)."""
+    """Latest date in the yearly files (reads only the end of the most recent file)."""
     base = raw_dir / "country" / key
     if not base.exists():
         return None
@@ -129,9 +129,9 @@ def download_api_gap(
     source_key: str,
     pause_s: float = 0.5,
 ) -> int:
-    """Baixa [start, end] via Area API em janelas de 5 dias. Retorna n de janelas baixadas."""
+    """Downloads [start, end] via the Area API in 5-day windows. Returns the number of windows downloaded."""
     if not map_key:
-        raise RuntimeError("FIRMS_MAP_KEY vazio: defina no .env")
+        raise RuntimeError("FIRMS_MAP_KEY is empty: set it in .env")
     src = SOURCES[source_key]
     bbox_s = ",".join(f"{v:g}" for v in bbox)
     n = 0
@@ -145,7 +145,7 @@ def download_api_gap(
                 days = min(API_MAX_DAYS, (end - cur).days + 1)
                 api_source = src.api_sp if cur + timedelta(days=days - 1) <= sp_max else src.api_nrt
                 dest = raw_dir / "api" / source_key / f"{api_source}_{cur.isoformat()}_{days}d.csv"
-                # NRT muda ate consolidar: sempre rebaixa janelas NRT
+                # NRT changes until it is consolidated: always re-download NRT windows
                 if api_source == src.api_nrt and dest.exists():
                     dest.unlink()
                 url = AREA_API_URL.format(
@@ -156,7 +156,7 @@ def download_api_gap(
                     head = dest.read_text("utf-8", "ignore")[:200]
                     if not head.startswith("latitude"):
                         dest.unlink()
-                        raise RuntimeError(f"Resposta inesperada da API ({api_source} {cur}): {head}")
+                        raise RuntimeError(f"Unexpected API response ({api_source} {cur}): {head}")
                     time.sleep(pause_s)
                 cur += timedelta(days=days)
                 bar.update(1)
@@ -164,8 +164,8 @@ def download_api_gap(
 
 
 def download_live(raw_dir: Path) -> dict[str, int]:
-    """Snapshot dos feeds publicos de 7 dias (sem MAP_KEY). Rodando todo dia, a serie
-    recente se constroi sozinha; o ingest remove as duplicatas entre snapshots."""
+    """Snapshot of the public 7-day feeds (no MAP_KEY). Run daily, the recent series
+    builds itself; ingest removes the duplicates between snapshots."""
     out = {}
     stamp = date.today().isoformat()
     with httpx.Client(timeout=TIMEOUT, follow_redirects=True) as client:
@@ -182,7 +182,7 @@ def download_live(raw_dir: Path) -> dict[str, int]:
 
 
 def download_context(raw_dir: Path) -> Path:
-    """Indice ONI (El Nino / La Nina) da NOAA."""
+    """NOAA's ONI index (El Nino / La Nina)."""
     dest = raw_dir / "context" / "oni.txt"
     dest.parent.mkdir(parents=True, exist_ok=True)
     with httpx.Client(timeout=TIMEOUT, follow_redirects=True) as client:

@@ -1,8 +1,8 @@
 import type { CalendarData } from './api'
 
 /**
- * Meses do ano corrente, anteriores ao mês atual, que vieram zerados onde a mediana histórica não é zero:
- * é lacuna de ingestão, não ausência de fogo. Com lacuna, o acumulado do ano não é comparável.
+ * Months of the current year, before the current month, that came back as zero where the historical median is not zero:
+ * that is an ingestion gap, not an absence of fire. With a gap, the year-to-date total is not comparable.
  */
 export function missingMonths(d: CalendarData): number[] {
   const { year, month } = d.current

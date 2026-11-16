@@ -19,7 +19,7 @@ maplibregl.setWorkerUrl(maplibreWorkerUrl)
 const BASEMAP = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
 const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
 
-/** Espaço reservado ao que fica por cima do mapa (painel à direita, linha do tempo embaixo). */
+/** Space reserved for what sits on top of the map (panel on the right, timeline at the bottom). */
 const framing = () =>
   innerWidth > 900
     ? { top: 130, bottom: 190, left: 48, right: (document.getElementById('dossier')?.offsetWidth ?? 520) + 48 }
@@ -33,14 +33,14 @@ export interface Layer {
 interface Props {
   selection: GeoJSON.Feature | null
   layer: Layer
-  /** Período fixado para comparar: aparece à esquerda do divisor. */
+  /** Period pinned for comparison: shown left of the divider. */
   pinned: Layer | null
-  /** Modo relevo: células como colunas, câmera inclinada. */
+  /** Relief mode: cells as columns, tilted camera. */
   relief: boolean
   onRegion: (id: string) => void
   onDraw: (g: GeoJSON.Geometry) => void
   onPoint: (lat: number, lon: number, radiusKm: number) => void
-  /** Volta à Amazônia inteira; ausente quando ela já é a área. */
+  /** Goes back to the whole Amazon; absent when it already is the area. */
   onReset?: () => void
 }
 
@@ -67,7 +67,7 @@ export function MapPanel({ selection, layer, pinned, relief, onRegion, onDraw, o
   const cellCanvas = useCellLayer(mapRef, ready, current, fixed, split)
   const hovered = useRegionHover(mapRef, ready, tool === 'select')
 
-  /** Onde cada célula começa na sequência, para o cartão sob o cursor. */
+  /** Where each cell starts in the sequence, for the card under the cursor. */
   const byCell = useMemo(() => {
     const cells = grid.data?.cells ?? new Float32Array()
     const at = new Map<string, number>()
@@ -75,7 +75,7 @@ export function MapPanel({ selection, layer, pinned, relief, onRegion, onDraw, o
     return { cells, at }
   }, [grid.data])
 
-  // o que os ouvintes do mapa (registrados uma vez) precisam ver sempre atual
+  // what the map listeners (registered once) must always see up to date
   const live = useRef({ tool, byCell, relief, onRegion, onDraw })
   useEffect(() => {
     live.current = { tool, byCell, relief, onRegion, onDraw }
@@ -88,8 +88,8 @@ export function MapPanel({ selection, layer, pinned, relief, onRegion, onDraw, o
       style: BASEMAP,
       bounds: [[-74, -17], [-44, 5.5]],
       fitBoundsOptions: { padding: framing() },
-      attributionControl: false, // os créditos ficam no rodapé da linha do tempo
-      // norte sempre para cima: o divisor da comparação corta numa longitude
+      attributionControl: false, // the credits live in the timeline footer
+      // north always up: the comparison divider cuts along a longitude
       dragRotate: false,
       pitchWithRotate: false,
     })
@@ -100,7 +100,7 @@ export function MapPanel({ selection, layer, pinned, relief, onRegion, onDraw, o
     map.once('load', () => {
       const symbols = map.getStyle().layers?.filter((l) => l.type === 'symbol') ?? []
       const firstSymbol = symbols[0]?.id
-      // do mapa base ficam só os nomes de países e estados; cidades e rios disputam com os dados
+      // keep only country and state names from the basemap; cities and rivers compete with the data
       for (const l of symbols) if (!/country|state/.test(l.id)) map.setLayoutProperty(l.id, 'visibility', 'none')
       map.addSource('outlines', { type: 'geojson', data: EMPTY_FC })
       map.addSource('cells', { type: 'canvas', canvas: cellCanvas, coordinates: CELL_COORDS, animate: false })
@@ -143,16 +143,16 @@ export function MapPanel({ selection, layer, pinned, relief, onRegion, onDraw, o
         const r = await api.regionAt(e.lngLat.lng, e.lngLat.lat)
         live.current.onRegion(r.id)
       } catch {
-        /* fora do bioma */
+        /* outside the biome */
       }
     })
 
-    // cartão da célula: só com mouse, fora do relevo (a coluna desloca o ponto sob o cursor)
+    // cell card: mouse only, not in relief (the column shifts the point under the cursor)
     if (matchMedia('(hover: hover) and (pointer: fine)').matches) {
       map.on('mousemove', (e) => {
         const { cells, at } = live.current.byCell
         const i = live.current.relief ? undefined : at.get(cellKey(e.lngLat.lng, e.lngLat.lat))
-        // lon/lat arredondados: a célula é a mesma de um período para outro, e a chave do cartão também
+        // rounded lon/lat: the cell is the same from one period to the next, and so is the card's key
         setHover(i == null ? null : { x: e.originalEvent.clientX, y: e.originalEvent.clientY, lon: +cells[i].toFixed(2), lat: +cells[i + 1].toFixed(2), v: cells[i + 2] })
       })
       map.on('mouseout', () => setHover(null))
@@ -164,19 +164,19 @@ export function MapPanel({ selection, layer, pinned, relief, onRegion, onDraw, o
     }
   }, [cellCanvas])
 
-  // ---- dados ----
+  // ---- data ----
   useEffect(() => {
     if (!ready || !outlines.data) return
     ;(mapRef.current!.getSource('outlines') as maplibregl.GeoJSONSource).setData(outlines.data)
   }, [ready, outlines.data])
 
-  // enquanto o período pedido não chega, o mapa anterior fica esmaecido (a barra de carregamento está na linha do tempo)
+  // until the requested period arrives, the previous map stays dimmed (the loading bar is on the timeline)
   const stale = grid.isPlaceholderData
   useEffect(() => {
     if (ready) mapRef.current!.setPaintProperty('cells', 'raster-opacity', stale ? 0.45 : 1)
   }, [ready, stale])
 
-  // relevo: troca a textura plana pelas colunas e inclina a câmera
+  // relief: swaps the flat texture for the columns and tilts the camera
   useEffect(() => {
     if (!ready) return
     const map = mapRef.current!

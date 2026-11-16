@@ -1,7 +1,7 @@
 name: firecal
-# Uso na VM:
-#   docker compose up -d --build                 # sobe web + api
-#   docker compose run --rm pipeline all         # baixa/processa os dados (primeira vez)
+# Usage on the VM:
+#   docker compose up -d --build                 # starts web + api
+#   docker compose run --rm pipeline all         # downloads/processes the data (first run)
 #   docker compose run --rm pipeline download-recent && docker compose run --rm pipeline ingest && docker compose run --rm pipeline harmonize
 services:
   api:

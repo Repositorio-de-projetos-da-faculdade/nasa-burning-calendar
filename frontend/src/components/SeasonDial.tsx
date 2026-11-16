@@ -10,7 +10,7 @@ const polar = (r: number, deg: number) => {
   return `${(r * Math.cos(a)).toFixed(2)} ${(r * Math.sin(a)).toFixed(2)}`
 }
 
-/** Relógio do ano: 12 fatias (jan no topo), raio pela mediana de focos; a temporada de fogo em destaque. */
+/** Year clock: 12 slices (Jan at the top), radius by the median hotspots; the fire season highlighted. */
 export function SeasonDial({ climatology, season, size = 40 }: { climatology: Climatology[]; season: number[]; size?: number }) {
   const max = Math.max(1, ...climatology.map((c) => c.median))
   const peak = climatology.reduce((a, b) => (b.median > a.median ? b : a))
@@ -20,7 +20,7 @@ export function SeasonDial({ climatology, season, size = 40 }: { climatology: Cl
       height={size}
       viewBox="-32 -32 64 64"
       role="img"
-      aria-label={`Distribuição dos focos ao longo do ano, com pico em ${MONTHS_LONG[peak.month - 1]}`}
+      aria-label={`Distribution of hotspots over the year, peaking in ${MONTHS_LONG[peak.month - 1]}`}
     >
       {climatology.map((c) => {
         const r = R0 + (R1 - R0) * Math.sqrt(c.median / max)

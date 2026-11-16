@@ -4,7 +4,7 @@ import { Badge } from './Badge'
 import { CountUp } from './CountUp'
 import type { Layer } from './MapPanel'
 
-/** Leitura curta do período, dentro da linha do tempo que o controla; a leitura principal fica no painel. */
+/** Short reading of the period, inside the timeline that controls it; the main reading lives in the panel. */
 export function Hud({ d, layer }: { d: CalendarData; layer: Layer }) {
   const r = readout(d, layer)
   return (
@@ -12,7 +12,7 @@ export function Hud({ d, layer }: { d: CalendarData; layer: Layer }) {
       <p className="hud-when">{d.area.name} · {r.when}</p>
       <p className="hud-line">
         <b className="hud-value num">{r.value == null ? '—' : <CountUp value={r.value} />}</b>
-        <span>focos</span>
+        <span>hotspots</span>
         {r.pct !== undefined && <Badge pct={r.pct} />}
       </p>
     </div>

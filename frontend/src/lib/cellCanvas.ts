@@ -1,30 +1,30 @@
 import { HEAT, heat, LEVELS } from './scales'
 
 /**
- * O mapa de calor desenhado num canvas, que o MapLibre usa como textura.
- * Trocar de período vira um redesenho de poucos milissegundos, em vez de reprocessar
- * milhares de polígonos: é o que deixa o arrasto da linha do tempo fluido.
+ * The heat map drawn on a canvas, which MapLibre uses as a texture.
+ * Changing the period becomes a redraw of a few milliseconds instead of reprocessing
+ * thousands of polygons: that is what keeps timeline scrubbing smooth.
  */
 
-/** Células em sequência: lon, lat, focos, lon, lat, focos… */
+/** Cells in sequence: lon, lat, hotspots, lon, lat, hotspots… */
 export type Cells = Float32Array
 
-const CELL = 0.1 // lado da célula da grade, em graus
-const PX = 2 // pixels do canvas por célula; a textura é ampliada com interpolação, o que dá o campo contínuo
-// ponytail: retângulo fixo ao redor do bioma; células fora dele não são desenhadas. Se a área de estudo crescer, derive dos dados.
+const CELL = 0.1 // grid cell side, in degrees
+const PX = 2 // canvas pixels per cell; the texture is upscaled with interpolation, which gives the continuous field
+// ponytail: fixed rectangle around the biome; cells outside it are not drawn. If the study area grows, derive it from the data.
 const W = -75, E = -43, S = -19, N = 6
-/** Escala fixa (focos por célula no mês): assim o mapa apaga na chuva e acende na seca. */
+/** Fixed scale (hotspots per cell in the month): so the map dims in the rainy season and lights up in the dry season. */
 const MONTH_BREAKS = [2, 4, 8, 15, 30, 60, 120, 240, 480]
 
-/** Latitude -> y de Mercator: a textura é esticada linearmente em Mercator entre os cantos. */
+/** Latitude -> Mercator y: the texture is stretched linearly in Mercator between the corners. */
 const merc = (lat: number) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360))
 const WIDTH = Math.round(((E - W) / CELL) * PX)
 const HEIGHT = Math.round((WIDTH * (merc(N) - merc(S))) / (((E - W) * Math.PI) / 180))
 
-/** Cantos da textura no mapa: NO, NE, SE, SO. */
+/** Texture corners on the map: NW, NE, SE, SW. */
 export const CELL_COORDS: [[number, number], [number, number], [number, number], [number, number]] = [[W, N], [E, N], [E, S], [W, S]]
 
-/** Longitude -> coluna da textura (onde cortar na comparação lado a lado). */
+/** Longitude -> texture column (where to cut in the side-by-side comparison). */
 export const lonToX = (lon: number) => Math.min(WIDTH, Math.max(0, Math.round(((lon - W) / (E - W)) * WIDTH)))
 const latToY = (lat: number) => Math.round(((merc(N) - merc(lat)) / (merc(N) - merc(S))) * HEIGHT)
 
@@ -35,7 +35,7 @@ export function makeCanvas() {
   return canvas
 }
 
-/** Focos -> nível 0..LEVELS-1. Mês: escala fixa; ano e média: decis (cada nível cobre a mesma quantidade de células). */
+/** Hotspots -> level 0..LEVELS-1. Month: fixed scale; year and mean: deciles (each level covers the same number of cells). */
 function levels(cells: Cells, monthly: boolean) {
   let breaks = MONTH_BREAKS
   if (!monthly) {
@@ -49,7 +49,7 @@ function levels(cells: Cells, monthly: boolean) {
   }
 }
 
-/** Intensidade (0..255) -> pixel RGBA de 32 bits: a rampa de calor interpolada, com opacidade que cresce com a intensidade. */
+/** Intensity (0..255) -> 32-bit RGBA pixel: the interpolated heat ramp, with opacity growing with intensity. */
 const PALETTE = (() => {
   const rgb = HEAT.map((h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)))
   const bytes = new Uint8ClampedArray(256 * 4)
@@ -62,13 +62,13 @@ const PALETTE = (() => {
   return new Uint32Array(bytes.buffer)
 })()
 
-// buffers de trabalho reaproveitados entre períodos
+// work buffers reused across periods
 const intensity = new Uint8Array(WIDTH * HEIGHT)
 const blurred = new Uint8Array(WIDTH * HEIGHT)
 
 /**
- * Um período como campo de calor contínuo: intensidade por célula, suavizada com os vizinhos, depois colorida pela rampa.
- * Tudo em arrays (sem filtros nem leitura de volta do canvas): custa poucos milissegundos, o que permite redesenhar a cada mês do arrasto.
+ * A period as a continuous heat field: intensity per cell, smoothed with its neighbours, then colored by the ramp.
+ * Everything in arrays (no filters, no reading back from the canvas): it costs a few milliseconds, which allows redrawing at every month while scrubbing.
  */
 export function renderField(cells: Cells, monthly: boolean) {
   const level = levels(cells, monthly)
@@ -79,7 +79,7 @@ export function renderField(cells: Cells, monthly: boolean) {
     const a = ((level(cells[i + 2]) + 1) / LEVELS) * 255
     for (let dy = 0; dy < PX; dy++) intensity.fill(a, (y0 + dy) * WIDTH + x0, (y0 + dy) * WIDTH + x0 + PX)
   }
-  // suavização [1 2 1] na horizontal e depois na vertical
+  // [1 2 1] smoothing horizontally, then vertically
   for (let i = 1; i < intensity.length - 1; i++) blurred[i] = (intensity[i - 1] + 2 * intensity[i] + intensity[i + 1]) >> 2
   const img = new ImageData(WIDTH, HEIGHT)
   const px = new Uint32Array(img.data.buffer)
@@ -89,7 +89,7 @@ export function renderField(cells: Cells, monthly: boolean) {
   return out
 }
 
-/** Pinta `a` no alvo; com `b`, a metade à esquerda de `splitX` vem de `b` (comparação lado a lado). */
+/** Paints `a` onto the target; with `b`, the part left of `splitX` comes from `b` (side-by-side comparison). */
 export function compose(target: HTMLCanvasElement, a: HTMLCanvasElement, b?: HTMLCanvasElement, splitX = 0) {
   const ctx = target.getContext('2d')!
   ctx.globalAlpha = 1
@@ -102,7 +102,7 @@ export function compose(target: HTMLCanvasElement, a: HTMLCanvasElement, b?: HTM
   return target
 }
 
-/** Funde `from` em `to` no alvo ao longo de `ms`. Devolve o cancelamento. */
+/** Cross-fades `from` into `to` on the target over `ms`. Returns the cancel function. */
 export function fade(target: HTMLCanvasElement, from: HTMLCanvasElement, to: HTMLCanvasElement, ms: number, done: () => void) {
   const ctx = target.getContext('2d')!
   const start = performance.now()
@@ -122,10 +122,10 @@ export function fade(target: HTMLCanvasElement, from: HTMLCanvasElement, to: HTM
   return () => cancelAnimationFrame(raf)
 }
 
-/** Chave da célula que contém o ponto (os centros ficam em x,x5: floor agrupa certo). */
+/** Key of the cell containing the point (centers sit at x.x5: floor groups correctly). */
 export const cellKey = (lon: number, lat: number) => `${Math.floor(lon * 10)},${Math.floor(lat * 10)}`
 
-/** Modo relevo: cada célula vira uma coluna cuja altura (em metros) e cor seguem o nível. */
+/** Relief mode: each cell becomes a column whose height (in meters) and color follow the level. */
 export function cellColumns(cells: Cells, monthly: boolean): GeoJSON.FeatureCollection {
   const level = levels(cells, monthly)
   const h = CELL / 2

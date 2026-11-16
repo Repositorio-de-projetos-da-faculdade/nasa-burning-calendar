@@ -58,7 +58,7 @@ export default function App() {
   const onDraw = useCallback((geometry: GeoJSON.Geometry) => setArea({ kind: 'drawn', geometry }), [])
   const onPoint = useCallback((lat: number, lon: number, r: number) => setArea({ kind: 'point', lat, lon, r }), [])
 
-  /** Qualquer escolha manual do período pausa o timelapse. */
+  /** Any manual choice of period pauses the timelapse. */
   const setLayer = useCallback((l: Layer) => {
     setPlaying(false)
     setLayerRaw(l)
@@ -66,7 +66,7 @@ export default function App() {
 
   const d = cal.data
 
-  // primeiro quadro: o período do link; senão o mês recorde
+  // first frame: the period from the link; otherwise the record month
   const started = useRef(false)
   useEffect(() => {
     if (!d || started.current) return
@@ -74,14 +74,14 @@ export default function App() {
     if (!shared.layer) setLayerRaw({ year: d.summary.record_month.year, month: d.summary.record_month.month })
   }, [d, shared.layer])
 
-  // o link acompanha a área e o período (parado: durante o timelapse não reescreve a cada passo)
+  // the link follows the area and the period (only when stopped: the timelapse does not rewrite it at every step)
   useEffect(() => {
     if (playing) return
     const id = setTimeout(() => writeShare(area, layer), 300)
     return () => clearTimeout(id)
   }, [area, layer, playing])
 
-  // o ano inteiro do período (e os anos vizinhos, no modo anual) já em cache: arrastar não espera a rede
+  // the whole year of the period (and the neighbouring years, in year mode) already cached: scrubbing never waits for the network
   useEffect(() => {
     const { year, month } = layer
     if (year == null) return
@@ -89,9 +89,9 @@ export default function App() {
       ? [{ year: year - 1, month }, { year: year + 1, month }]
       : Array.from({ length: 12 }, (_, i) => ({ year, month: i + 1 }))
     for (const n of near) void qc.prefetchQuery(gridQuery(n))
-  }, [layer.year, layer.month == null, qc]) // eslint-disable-line react-hooks/exhaustive-deps -- só ao trocar de ano ou de modo
+  }, [layer.year, layer.month == null, qc]) // eslint-disable-line react-hooks/exhaustive-deps -- only when the year or the mode changes
 
-  // timelapse: um mês (ou um ano) por passo, em laço
+  // timelapse: one month (or one year) per step, looping
   const step = useRef(() => {})
   step.current = () => {
     if (!d) return

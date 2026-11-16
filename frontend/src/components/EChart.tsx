@@ -2,7 +2,7 @@ import * as echarts from 'echarts'
 import { useEffect, useRef } from 'react'
 import { INK } from '../lib/scales'
 
-/** Wrapper minimo do ECharts com resize automatico; onClick recebe o indice do dado clicado. */
+/** Minimal ECharts wrapper with automatic resize; onClick receives the index of the clicked datum. */
 export function EChart({ option, height, onClick }: { option: echarts.EChartsOption; height: number; onClick?: (i: number) => void }) {
   const el = useRef<HTMLDivElement>(null)
   const chart = useRef<echarts.ECharts | null>(null)
@@ -27,7 +27,7 @@ export function EChart({ option, height, onClick }: { option: echarts.EChartsOpt
   return <div ref={el} style={{ height, width: '100%', cursor: onClick ? 'pointer' : undefined }} />
 }
 
-/** Base comum: eixos e grid recessivos, tooltip no tema. */
+/** Shared base: recessive axes and grid, themed tooltip. */
 export const baseOption: echarts.EChartsOption = {
   backgroundColor: 'transparent',
   textStyle: { fontFamily: 'Geist Variable, system-ui, sans-serif', color: INK.text },

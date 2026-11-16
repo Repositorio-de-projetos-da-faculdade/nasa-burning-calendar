@@ -7,7 +7,7 @@ export interface Region {
   id: string
   name: string
   kind: 'biome' | 'state' | 'municipality'
-  uf: string | null
+  state: string | null
   bbox: [number, number, number, number]
 }
 
@@ -41,7 +41,7 @@ export interface AnnualTotal {
 }
 
 export interface CalendarData {
-  area: { name: string; kind: string; uf?: string | null; area_km2: number; bbox: number[] }
+  area: { name: string; kind: string; state?: string | null; area_km2: number; bbox: number[] }
   data_from: string
   data_until: string
   baseline: [number, number]
@@ -64,7 +64,7 @@ export interface CalendarData {
 }
 
 export interface GridData {
-  /** Células em sequência: lon, lat, focos, lon, lat, focos… Compacto porque o histórico inteiro fica em memória. */
+  /** Cells in sequence: lon, lat, hotspots, lon, lat, hotspots… Compact because the whole history stays in memory. */
   cells: Float32Array
   p95: number
   max: number
@@ -95,7 +95,7 @@ const post = <T,>(path: string, body: unknown) =>
   )
 const get = <T,>(path: string) => fetch(path).then((r) => json<T>(r))
 
-/** Versão dos dados no servidor. Vai na URL do mapa: com a mesma versão o navegador usa a cópia local, com outra baixa de novo. */
+/** Version of the data on the server. It goes in the map URL: with the same version the browser uses its local copy, with another it downloads again. */
 const version = get<{ version: string }>('/api/version').then((v) => v.version, () => '')
 
 export const api = {
@@ -123,11 +123,11 @@ export async function download(path: string, body: unknown, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-/** Consulta da camada do mapa para um período (a mesma chave no mapa, na linha do tempo e nas pré-cargas). */
+/** Map layer query for a period (the same key in the map, the timeline and the preloads). */
 export const gridQuery = (l: { year: number | null; month: number | null }) => ({
   queryKey: ['grid', l.year, l.month],
   queryFn: () => api.grid(l.year, l.month),
-  // o histórico não muda durante a sessão: uma vez baixado, fica
+  // the history does not change during the session: once downloaded, it stays
   staleTime: Infinity,
   gcTime: Infinity,
 })

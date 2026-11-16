@@ -5,29 +5,29 @@ import type { Region } from '../lib/api'
 export type Tool = 'select' | 'rectangle' | 'polygon' | 'circle' | 'coords'
 
 const TOOLS: { id: Tool; label: string; icon: typeof Square; hint: string }[] = [
-  { id: 'select', label: 'Município', icon: MousePointerClick, hint: 'Clique no mapa para analisar um município.' },
-  { id: 'rectangle', label: 'Retângulo', icon: Square, hint: 'Clique em dois cantos para desenhar o retângulo.' },
-  { id: 'polygon', label: 'Polígono', icon: Pentagon, hint: 'Clique para adicionar vértices; clique no primeiro ponto para fechar.' },
-  { id: 'circle', label: 'Raio', icon: Circle, hint: 'Clique no centro e arraste/clique para definir o raio.' },
-  { id: 'coords', label: 'Coordenadas', icon: Crosshair, hint: '' },
+  { id: 'select', label: 'Municipality', icon: MousePointerClick, hint: 'Click the map to analyze a municipality.' },
+  { id: 'rectangle', label: 'Rectangle', icon: Square, hint: 'Click two corners to draw the rectangle.' },
+  { id: 'polygon', label: 'Polygon', icon: Pentagon, hint: 'Click to add vertices; click the first point to close.' },
+  { id: 'circle', label: 'Radius', icon: Circle, hint: 'Click the center, then drag/click to set the radius.' },
+  { id: 'coords', label: 'Coordinates', icon: Crosshair, hint: '' },
 ]
 
 interface Props {
   tool: Tool
   onPick: (t: Tool) => void
   onPoint: (lat: number, lon: number, radiusKm: number) => void
-  /** Município sob o cursor, com a ferramenta de município ativa. */
+  /** Municipality under the cursor, while the municipality tool is active. */
   hovered: Region | null
   onReset?: () => void
 }
 
-/** Como escolher a área: barra de ferramentas, dica da ferramenta ativa e o formulário de coordenadas. */
+/** How to choose the area: toolbar, hint for the active tool and the coordinates form. */
 export function MapTools({ tool, onPick, onPoint, hovered, onReset }: Props) {
   const [coords, setCoords] = useState({ lat: '-9.0', lon: '-55.0', r: '50' })
-  const hint = hovered ? `${hovered.name}${hovered.uf ? ` · ${hovered.uf}` : ''} — clique para analisar` : TOOLS.find((t) => t.id === tool)?.hint
+  const hint = hovered ? `${hovered.name}${hovered.state ? ` · ${hovered.state}` : ''} — click to analyze` : TOOLS.find((t) => t.id === tool)?.hint
   return (
     <>
-      <div className="widget tools" role="toolbar" aria-label="Selecionar área">
+      <div className="widget tools" role="toolbar" aria-label="Select area">
         {TOOLS.map((t) => (
           <button key={t.id} className="tool" data-active={tool === t.id} onClick={() => onPick(t.id)} title={t.label}>
             <t.icon size={15} />
@@ -37,7 +37,7 @@ export function MapTools({ tool, onPick, onPoint, hovered, onReset }: Props) {
         {onReset && (
           <button className="tool tool-reset" onClick={onReset}>
             <Undo2 size={15} />
-            Visão geral
+            Overview
           </button>
         )}
       </div>
@@ -52,11 +52,11 @@ export function MapTools({ tool, onPick, onPoint, hovered, onReset }: Props) {
         >
           <label>Latitude<input value={coords.lat} onChange={(e) => setCoords({ ...coords, lat: e.target.value })} inputMode="decimal" /></label>
           <label>Longitude<input value={coords.lon} onChange={(e) => setCoords({ ...coords, lon: e.target.value })} inputMode="decimal" /></label>
-          <label>Raio (km)<input value={coords.r} onChange={(e) => setCoords({ ...coords, r: e.target.value })} inputMode="decimal" /></label>
-          <button className="btn btn-primary" type="submit">Analisar</button>
+          <label>Radius (km)<input value={coords.r} onChange={(e) => setCoords({ ...coords, r: e.target.value })} inputMode="decimal" /></label>
+          <button className="btn btn-primary" type="submit">Analyze</button>
         </form>
       ) : (
-        // a dica da ferramenta some sozinha depois de lida; o nome do município sob o cursor fica
+        // the tool hint fades on its own once read; the name of the municipality under the cursor stays
         hint && <p className="widget hint" key={hint} data-fades={!hovered}>{hint}</p>
       )}
     </>

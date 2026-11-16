@@ -19,7 +19,7 @@ router = APIRouter(prefix="/api")
 
 def _require(name: str) -> None:
     if not db.available()[name]:
-        raise HTTPException(503, f"Dado '{name}' ainda nao gerado. Rode o pipeline (firecal all).")
+        raise HTTPException(503, f"Data '{name}' not generated yet. Run the pipeline (firecal all).")
 
 
 @router.get("/health")
@@ -46,7 +46,7 @@ def meta():
     return out
 
 
-# ---------- regioes ----------
+# ---------- regions ----------
 
 @router.get("/regions")
 def list_regions():
@@ -62,7 +62,7 @@ def region_outlines():
 def region_at(lon: float, lat: float, kind: str = "municipality"):
     r = regions.region_at(lon, lat, kind)
     if r is None:
-        raise HTTPException(404, "Fora da Amazonia")
+        raise HTTPException(404, "Outside the Amazon")
     return r
 
 
@@ -70,15 +70,15 @@ def region_at(lon: float, lat: float, kind: str = "municipality"):
 def region_feature(rid: str):
     f = regions.get_feature(rid)
     if f is None:
-        raise HTTPException(404, "Regiao nao encontrada")
+        raise HTTPException(404, "Region not found")
     return f
 
 
-# ---------- calendario ----------
+# ---------- calendar ----------
 
 @router.post("/calendar")
 def calendar(q: AreaQuery):
-    """Matriz ano x mes harmonizada, climatologia, anomalias e indicadores da area."""
+    """Harmonized year x month matrix, climatology, anomalies and indicators for the area."""
     _require("monthly_cells")
     meta_, geom = q.resolve()
 
@@ -92,7 +92,7 @@ def calendar(q: AreaQuery):
 
 @router.get("/version")
 def version():
-    """Versao dos dados processados; muda quando o pipeline roda de novo."""
+    """Version of the processed data; changes whenever the pipeline runs again."""
     return {"version": str(analytics.stamp())}
 
 
@@ -103,10 +103,10 @@ def grid(
     month: int | None = Query(None, ge=1, le=12),
     v: str | None = Query(None),
 ):
-    """Focos harmonizados por celula (camada do mapa). Sem ano: media anual."""
+    """Harmonized hotspots per cell (map layer). Without a year: annual mean."""
     _require("monthly_cells")
     stamp = analytics.stamp()
-    # pedido com a versao atual na URL: o navegador pode guardar para sempre, dados novos trocam a URL
+    # URL with the current version: the browser may cache it forever; new data changes the URL
     if v == str(stamp):
         response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     return analytics.grid(stamp, year, month)
@@ -122,10 +122,10 @@ class HotspotsQuery(AreaQuery):
 
 @router.post("/hotspots.csv")
 def hotspots_csv(q: HotspotsQuery):
-    """CSV dos focos brutos (todos os satelites) dentro da area e periodo."""
+    """CSV of the raw hotspots (all satellites) inside the area and period."""
     _require("hotspots")
     if q.end < q.start:
-        raise HTTPException(400, "Data final antes da inicial")
+        raise HTTPException(400, "End date is before the start date")
     geom = q.to_geom()
     w, s, e, n = geom.bounds
     params = [w, e, s, n, q.start, q.end, q.start.year, q.end.year]
@@ -162,7 +162,7 @@ def hotspots_csv(q: HotspotsQuery):
             buf.truncate()
         yield buf.getvalue()
 
-    fname = f"focos_{q.region or 'area'}_{q.start}_{q.end}.csv"
+    fname = f"hotspots_{q.region or 'area'}_{q.start}_{q.end}.csv"
     return StreamingResponse(
         gen(), media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{fname}"'},
@@ -171,7 +171,7 @@ def hotspots_csv(q: HotspotsQuery):
 
 @router.post("/calendar.csv")
 def calendar_csv(q: AreaQuery):
-    """Serie mensal harmonizada da area (o calendario em CSV)."""
+    """Harmonized monthly series for the area (the calendar as CSV)."""
     data = calendar(q)
     clim = {c["month"]: c for c in data["climatology"]}
     buf = io.StringIO()
@@ -181,12 +181,12 @@ def calendar_csv(q: AreaQuery):
     for r in data["series"]:
         wr.writerow([r["year"], r["month"], r["harmonized"], r["modis_raw"], r["viirs_raw"],
                      r["source"], clim[r["month"]]["median"], r["anomaly_pct"], r["partial"]])
-    name = (q.region or "area") + "_calendario.csv"
+    name = (q.region or "area") + "_calendar.csv"
     return StreamingResponse(iter([buf.getvalue()]), media_type="text/csv",
                              headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
 
-# ---------- validacao ----------
+# ---------- validation ----------
 
 class ValidationRow(BaseModel):
     year: int
@@ -198,7 +198,7 @@ class ValidationRow(BaseModel):
 
 @router.get("/validation")
 def validation():
-    """Sobreposicao 2012+: MODIS bruto x VIIRS x MODIS harmonizado + metricas."""
+    """2012+ overlap: raw MODIS x VIIRS x harmonized MODIS + metrics."""
     _require("validation")
     s = get_settings()
     c0, c1 = s.calib_range

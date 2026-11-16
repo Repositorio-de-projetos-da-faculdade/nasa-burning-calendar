@@ -1,4 +1,4 @@
-"""Calculos do calendario: agregacao por area, climatologia, anomalias e indicadores."""
+"""Calendar computations: aggregation by area, climatology, anomalies and indicators."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from shapely.geometry.base import BaseGeometry
 from . import db
 from .config import get_settings
 
-BASELINE_FIRST_YEAR = 2003  # primeiro ano completo com MODIS Aqua
+BASELINE_FIRST_YEAR = 2003  # first full year with MODIS Aqua
 
 
 def stamp() -> float:
@@ -33,7 +33,7 @@ def _cells(_stamp: float) -> dict[str, np.ndarray]:
 
 @lru_cache(maxsize=2)
 def coverage(_stamp: float) -> tuple[date, date]:
-    """(primeiro mes com dados, ultimo dia com dados)."""
+    """(first month with data, last day with data)."""
     cur = db.cursor()
     y, m = cur.execute("SELECT year, month FROM monthly_cells ORDER BY year, month LIMIT 1").fetchone()
     last = cur.execute("SELECT max(acq_date) FROM hotspots").fetchone()[0]
@@ -43,7 +43,7 @@ def coverage(_stamp: float) -> tuple[date, date]:
 def select_cells(geom: BaseGeometry) -> pa.Table:
     c = _cells(stamp())
     keep = shapely.contains_xy(geom, c["lon_c"], c["lat_c"])
-    if keep.sum() < 4:  # areas pequenas: usa celulas que tocam a area
+    if keep.sum() < 4:  # small areas: use the cells that touch the area
         g = get_settings().grid_deg
         boxes = shapely.box(c["cell_x"] * g, c["cell_y"] * g, (c["cell_x"] + 1) * g, (c["cell_y"] + 1) * g)
         keep = shapely.intersects(geom, boxes)
@@ -78,14 +78,14 @@ def build_calendar(geom: BaseGeometry) -> dict:
         np.add.at(M, (yi[ok], mi[ok]), d["m"][ok])
         np.add.at(V, (yi[ok], mi[ok]), d["v"][ok])
 
-    # meses cobertos pelos dados
+    # months covered by the data
     valid = np.zeros((ny, 12), bool)
     for i, y in enumerate(years):
         for m in range(12):
             valid[i, m] = date(y, m + 1, 1) >= first and date(y, m + 1, 1) <= last
     partial_month = (last.year, last.month) if last.day < cal.monthrange(last.year, last.month)[1] else None
 
-    last_full = last.year - 1  # o ano mais recente e sempre comparado contra os anteriores
+    last_full = last.year - 1  # the latest year is always compared against the earlier ones
     base_rows = [i for i, y in enumerate(years) if BASELINE_FIRST_YEAR <= y <= last_full]
     B = H[base_rows] if base_rows else H[:0]
     median = np.median(B, axis=0) if len(B) else np.zeros(12)
@@ -122,11 +122,11 @@ def build_calendar(geom: BaseGeometry) -> dict:
             "converted": y < 2012,
         })
 
-    # mes corrente (ultimo com dados) vs mediana proporcional
+    # current month (latest with data) vs. prorated median
     li, lm = years.index(last.year), last.month - 1
     frac = last.day / cal.monthrange(last.year, last.month)[1]
     cur_ref = median[lm] * frac
-    # acumulado no ano vs mediana do acumulado ate a mesma data
+    # year to date vs. the median year-to-date total at the same date
     ytd = H[li, :lm].sum() + H[li, lm]
     ytd_ref = median[:lm].sum() + cur_ref
     hist_ytd = (B[:, :lm].sum(axis=1) + B[:, lm] * frac) if len(B) else np.zeros(1)
@@ -169,7 +169,7 @@ def build_calendar(geom: BaseGeometry) -> dict:
             "fire_season_months": [int(m + 1) for m in np.where(share >= 1 / 12)[0]],
             "season_share": _r(100 * share[share >= 1 / 12].sum()),
         },
-        "unit": "focos equivalentes VIIRS S-NPP",
+        "unit": "VIIRS S-NPP equivalent hotspots",
     }
 
 

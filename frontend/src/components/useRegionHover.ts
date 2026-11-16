@@ -5,12 +5,12 @@ import { api, type Region } from '../lib/api'
 import { INK } from '../lib/scales'
 
 const EMPTY: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
-/** Espera o cursor assentar antes de perguntar qual município está sob ele. */
+/** Waits for the cursor to settle before asking which municipality is under it. */
 const SETTLE_MS = 60
 
 /**
- * Com a ferramenta de município ativa, contorna no mapa o município sob o cursor antes do clique.
- * Devolve o município em destaque (para mostrar o nome).
+ * With the municipality tool active, outlines the municipality under the cursor on the map before the click.
+ * Returns the highlighted municipality (to show its name).
  */
 export function useRegionHover(mapRef: RefObject<maplibregl.Map | null>, ready: boolean, active: boolean) {
   const qc = useQueryClient()
@@ -40,13 +40,13 @@ export function useRegionHover(mapRef: RefObject<maplibregl.Map | null>, ready: 
         const mine = ++seq
         try {
           const r = await api.regionAt(lng, lat)
-          // mesma chave da seleção: ao clicar, o contorno já está em memória
+          // same key as the selection: on click, the outline is already in memory
           const f = await qc.fetchQuery({ queryKey: ['region', r.id], queryFn: () => api.region(r.id), staleTime: Infinity })
           if (mine !== seq) return
           src.setData(f)
           setRegion(r)
         } catch {
-          if (mine === seq) clear() // fora do bioma
+          if (mine === seq) clear() // outside the biome
         }
       }, SETTLE_MS)
     }

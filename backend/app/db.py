@@ -1,4 +1,4 @@
-"""Acesso aos Parquets processados via DuckDB (somente leitura)."""
+"""Read-only access to the processed Parquet files via DuckDB."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ def _root() -> duckdb.DuckDBPyConnection:
 
 
 def cursor() -> duckdb.DuckDBPyConnection:
-    """Cursor por requisicao (thread-safe) com as views disponiveis registradas."""
+    """Per-request cursor (thread-safe) with the available views registered."""
     with _lock:
         cur = _root().cursor()
     p = get_settings().processed_dir

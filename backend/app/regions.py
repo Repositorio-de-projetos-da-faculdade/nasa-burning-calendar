@@ -1,4 +1,4 @@
-"""Regioes oficiais (bioma, UFs, municipios) carregadas de data/processed/regions.geojson."""
+"""Official regions (biome, states, municipalities) loaded from data/processed/regions.geojson."""
 
 from __future__ import annotations
 
@@ -19,10 +19,20 @@ def _load() -> dict[str, tuple[dict, dict, BaseGeometry]]:
         return {}
     out = {}
     for feat in json.loads(f.read_text("utf-8"))["features"]:
+        _upgrade(feat)
         geom = shape(feat["geometry"])
         shapely.prepare(geom)
         out[feat["id"]] = (feat["properties"], feat, geom)
     return out
+
+
+def _upgrade(feat: dict) -> None:
+    """Files written before the English rename used the "uf" key and "uf-XX" ids; read them the new way."""
+    props = feat["properties"]
+    if "uf" in props:
+        props["state"] = props.pop("uf")
+    if str(feat.get("id", "")).startswith("uf-"):
+        feat["id"] = props["id"] = "state-" + feat["id"][3:]
 
 
 def list_regions() -> list[dict]:
@@ -40,7 +50,7 @@ def get_geom(rid: str) -> tuple[dict, BaseGeometry] | None:
 
 
 def outlines() -> dict:
-    """Bioma + UFs para desenhar no mapa."""
+    """Biome + states, drawn on the map."""
     feats = [f for p, f, _ in _load().values() if p["kind"] in ("biome", "state")]
     return {"type": "FeatureCollection", "features": feats}
 

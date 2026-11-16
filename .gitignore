@@ -25,5 +25,5 @@ dist/
 .DS_Store
 Thumbs.db
 
-# limites baixados do INPE (regeneraveis com `firecal regions`)
+# boundaries downloaded from INPE (regenerate with `firecal regions`)
 data/boundaries/

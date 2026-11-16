@@ -1,4 +1,4 @@
-"""Configuracao central (lida do .env na raiz do repo ou de variaveis de ambiente)."""
+"""Central configuration (read from .env at the repo root or from environment variables)."""
 
 from functools import lru_cache
 from pathlib import Path
@@ -17,11 +17,11 @@ class Settings(BaseSettings):
     region_boundary: Path | None = Path("./data/boundaries/amazonia.geojson")
     cors_origins: str = "http://localhost:5173"
 
-    # Harmonizacao
-    grid_deg: float = 0.1  # celula da grade comum (graus)
-    calib_tile_deg: float = 2.0  # bloco espacial onde o fator MODIS->VIIRS e ajustado
-    calib_years: str = "2012-2021"  # sobreposicao com orbitas ainda estaveis
-    modis_satellites: str = "Aqua"  # Aqua passa ~13h30, como o S-NPP
+    # Harmonization
+    grid_deg: float = 0.1  # common grid cell size (degrees)
+    calib_tile_deg: float = 2.0  # spatial tile where the MODIS->VIIRS factor is fitted
+    calib_years: str = "2012-2021"  # overlap while both orbits were still stable
+    modis_satellites: str = "Aqua"  # Aqua passes at ~13:30, like S-NPP
     viirs_satellites: str = "S-NPP"
 
     @staticmethod

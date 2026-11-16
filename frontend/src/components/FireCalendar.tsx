@@ -15,8 +15,8 @@ interface Props {
 const markStyle = (m: Mark) => ({ '--s': m.size, '--c': m.color }) as CSSProperties
 
 /**
- * Matriz ano × mês: cada mês é um quadrado cujo tamanho cresce com os focos (ou com a distância do normal).
- * O mês selecionado é marcado de fora, por CSS, pelo atributo data-k ("ano-mês") de cada célula.
+ * Year × month matrix: each month is a square whose size grows with the hotspots (or with the distance from normal).
+ * The selected month is marked from outside, via CSS, through each cell's data-k ("year-month") attribute.
  */
 export const FireCalendar = memo(function FireCalendar({ data, mode, onSelect }: Props) {
   const { tip, show, hide } = useTooltip()
@@ -24,7 +24,7 @@ export const FireCalendar = memo(function FireCalendar({ data, mode, onSelect }:
 
   const byKey = useMemo(() => new Map(data.series.map((c) => [`${c.year}-${c.month}`, c])), [data])
 
-  // escala robusta: p98 dos meses, para um outlier nao apagar o resto
+  // robust scale: p98 of the months, so one outlier does not wash out the rest
   const scale = useMemo(() => {
     const vals = data.series.map((c) => c.harmonized).filter((v) => v > 0).sort((a, b) => a - b)
     return fireMarks(vals.length ? vals[Math.floor(vals.length * 0.98)] : 1)
@@ -44,20 +44,20 @@ export const FireCalendar = memo(function FireCalendar({ data, mode, onSelect }:
     <>
       <div className="tip-title">
         <span>
-          {MONTHS_LONG[c.month - 1]} de {c.year}
-          {c.partial && ' (parcial)'}
+          {MONTHS_LONG[c.month - 1]} {c.year}
+          {c.partial && ' (partial)'}
         </span>
         <span>{c.source}</span>
       </div>
-      <div className="tip-big num">{fmt(c.harmonized)} focos</div>
+      <div className="tip-big num">{fmt(c.harmonized)} hotspots</div>
       <div className="tip-row">
-        vs. mediana ({fmt(data.climatology[c.month - 1].median)}) <b className="num">{fmtPct(c.anomaly_pct)}</b>
+        vs. median ({fmt(data.climatology[c.month - 1].median)}) <b className="num">{fmtPct(c.anomaly_pct)}</b>
       </div>
       <div className="tip-row">
-        MODIS Aqua bruto <b className="num">{fmt(c.modis_raw)}</b>
+        Raw MODIS Aqua <b className="num">{fmt(c.modis_raw)}</b>
       </div>
       <div className="tip-row">
-        VIIRS S-NPP bruto <b className="num">{fmt(c.viirs_raw)}</b>
+        Raw VIIRS S-NPP <b className="num">{fmt(c.viirs_raw)}</b>
       </div>
     </>
   )
@@ -90,11 +90,11 @@ export const FireCalendar = memo(function FireCalendar({ data, mode, onSelect }:
               }}
               onClick={() => onSelect(y, i + 1)}
               role="button"
-              aria-label={`${MONTHS_LONG[i]} de ${y}: ${fmt(c.harmonized)} focos`}
+              aria-label={`${MONTHS_LONG[i]} ${y}: ${fmt(c.harmonized)} hotspots`}
             />
           )
         })}
-        <div className="cal-bar" data-peak={y === data.summary.peak_year} title={a?.partial ? 'Ano incompleto' : undefined}>
+        <div className="cal-bar" data-peak={y === data.summary.peak_year} title={a?.partial ? 'Incomplete year' : undefined}>
           <i style={{ width: `${Math.min(100, ((a?.total ?? 0) / maxAnnual) * 40)}px`, opacity: a?.partial ? 0.4 : undefined }} />
           <span className="num">{fmtCompact(a?.total)}</span>
         </div>
@@ -111,15 +111,15 @@ export const FireCalendar = memo(function FireCalendar({ data, mode, onSelect }:
             {m}
           </div>
         ))}
-        <div className="cal-mh cal-total">Total no ano</div>
+        <div className="cal-mh cal-total">Year total</div>
 
-        {viirsYears.length > 0 && <div className="cal-era">VIIRS S-NPP, medido (375 m)</div>}
+        {viirsYears.length > 0 && <div className="cal-era">VIIRS S-NPP, measured (375 m)</div>}
         {viirsYears.map((y, i) => row(y, i))}
-        {modisYears.length > 0 && <div className="cal-era">MODIS Aqua, convertido para equivalente VIIRS (1 km)</div>}
+        {modisYears.length > 0 && <div className="cal-era">MODIS Aqua, converted to VIIRS equivalent (1 km)</div>}
         {modisYears.map((y, i) => row(y, viirsYears.length + i))}
 
         <div className="cal-sep" />
-        <div className="cal-y">Mediana</div>
+        <div className="cal-y">Median</div>
         {data.climatology.map((c) => (
           <div
             key={c.month}
@@ -131,14 +131,14 @@ export const FireCalendar = memo(function FireCalendar({ data, mode, onSelect }:
                 e,
                 <>
                   <div className="tip-title">
-                    {MONTHS_LONG[c.month - 1]}, referência {data.baseline[0]} a {data.baseline[1]}
+                    {MONTHS_LONG[c.month - 1]}, baseline {data.baseline[0]} to {data.baseline[1]}
                   </div>
-                  <div className="tip-big num">{fmt(c.median)} focos</div>
+                  <div className="tip-big num">{fmt(c.median)} hotspots</div>
                   <div className="tip-row">
-                    faixa típica (p25 a p75) <b className="num">{fmt(c.p25)} a {fmt(c.p75)}</b>
+                    typical range (p25 to p75) <b className="num">{fmt(c.p25)} to {fmt(c.p75)}</b>
                   </div>
                   <div className="tip-row">
-                    recorde <b className="num">{fmt(c.max)} ({c.max_year})</b>
+                    record <b className="num">{fmt(c.max)} ({c.max_year})</b>
                   </div>
                 </>,
               )
@@ -147,13 +147,13 @@ export const FireCalendar = memo(function FireCalendar({ data, mode, onSelect }:
           />
         ))}
         <div className="cal-bar">
-          <span>{data.baseline[0]} a {data.baseline[1]}</span>
+          <span>{data.baseline[0]} to {data.baseline[1]}</span>
         </div>
       </div>
 
       <div className="cal-legend">
         <div className="legend-marks">
-          <span>{mode === 'count' ? 'Focos no mês' : 'Em relação à mediana'}</span>
+          <span>{mode === 'count' ? 'Hotspots in the month' : 'Relative to the median'}</span>
           {(mode === 'count'
             ? scale.legend.map((l) => ({ mark: l.mark, label: fmtCompact(l.value) }))
             : ANOMALY_LEGEND
@@ -166,7 +166,7 @@ export const FireCalendar = memo(function FireCalendar({ data, mode, onSelect }:
         </div>
         <div className="legend-keys">
           <span className="legend-key">
-            <i className="cal-c" data-partial="true" style={markStyle({ size: 0.5, color: SERIES.accent })} /> mês em andamento
+            <i className="cal-c" data-partial="true" style={markStyle({ size: 0.5, color: SERIES.accent })} /> month in progress
           </span>
         </div>
       </div>

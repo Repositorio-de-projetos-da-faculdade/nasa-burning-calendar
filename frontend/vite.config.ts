@@ -6,7 +6,7 @@ export default defineConfig({
   worker: { format: 'es' },
   server: {
     port: 5173,
-    allowedHosts: ['.trycloudflare.com'], // tunel rapido do cloudflared
+    allowedHosts: ['.trycloudflare.com'], // cloudflared quick tunnel
     proxy: { '/api': process.env.VITE_API_PROXY ?? 'http://localhost:8000' },
   },
 })

@@ -4,7 +4,7 @@ import { Badge } from './Badge'
 import { CountUp } from './CountUp'
 import type { Layer } from './MapPanel'
 
-/** Barra do valor com o marcador da referência. */
+/** Value bar with the reference marker. */
 function Gauge({ value, expected }: { value: number; expected: number }) {
   const top = Math.max(value, expected, 1) * 1.12
   return (
@@ -15,14 +15,14 @@ function Gauge({ value, expected }: { value: number; expected: number }) {
   )
 }
 
-/** A leitura principal do painel: o período que a linha do tempo pôs no mapa. */
+/** The panel's main reading: the period the timeline put on the map. */
 export function PeriodReading({ d, layer }: { d: CalendarData; layer: Layer }) {
   const r = readout(d, layer)
   return (
     <section className="block">
       <div className="now-row">
         <div>
-          <p className="eyebrow">No mapa</p>
+          <p className="eyebrow">On the map</p>
           <h2 className="w-label">{r.when}</h2>
           <p className="w-value w-value-lg num">{r.value == null ? '—' : <CountUp value={r.value} />}</p>
         </div>

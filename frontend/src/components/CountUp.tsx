@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { fmt } from '../lib/format'
 
-/** Número que "sobe" até o valor quando ele muda. */
+/** A number that "counts up" to the value when it changes. */
 export function CountUp({ value }: { value: number }) {
   const [shown, setShown] = useState(value)
   const from = useRef(0)

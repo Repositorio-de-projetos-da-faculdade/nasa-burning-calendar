@@ -18,9 +18,9 @@ const tipRows = (params: TipParam[], skip: string[] = []) =>
     )
     .join('')
 
-/** Ano atual vs. faixa historica, mes a mes. */
+/** Current year vs. the historical range, month by month. */
 export function SeasonChart({ data }: { data: CalendarData }) {
-  // o recorde estica a escala e achata o ano corrente: fica fora até pedirem
+  // the record year stretches the scale and flattens the current year: hidden until requested
   const [showPeak, setShowPeak] = useState(false)
   const option = useMemo<EChartsOption>(() => {
     const cur = data.current.year
@@ -35,24 +35,24 @@ export function SeasonChart({ data }: { data: CalendarData }) {
       grid: { left: 52, right: 12, top: 12, bottom: 28 },
       tooltip: {
         ...(baseOption.tooltip as object),
-        formatter: (p: unknown) => tipRows(p as TipParam[], ['_p25', 'Faixa típica (p25–p75)']),
+        formatter: (p: unknown) => tipRows(p as TipParam[], ['_p25', 'Typical range (p25–p75)']),
       },
       xAxis: { type: 'category', data: MONTHS, boundaryGap: false, ...axisStyle, splitLine: { show: false } },
       yAxis: { type: 'value', ...axisStyle, axisLabel: { ...axisStyle.axisLabel, formatter: (v: number) => fmt(v) } },
       series: [
         { name: '_p25', type: 'line', data: p25, stack: 'band', lineStyle: { opacity: 0 }, symbol: 'none', silent: true },
         {
-          name: 'Faixa típica (p25–p75)', type: 'line', data: iqr, stack: 'band', symbol: 'none',
+          name: 'Typical range (p25–p75)', type: 'line', data: iqr, stack: 'band', symbol: 'none',
           lineStyle: { opacity: 0 }, areaStyle: { color: 'rgba(161,161,166,0.14)' }, silent: true,
         },
         {
-          name: `Mediana ${data.baseline[0]}–${data.baseline[1]}`, type: 'line', symbol: 'none',
+          name: `Median ${data.baseline[0]}–${data.baseline[1]}`, type: 'line', symbol: 'none',
           data: data.climatology.map((c) => c.median), lineStyle: { color: INK.text, width: 2, type: 'dashed' },
           itemStyle: { color: INK.text },
         },
         ...(showPeak && peak && peak !== cur
           ? [{
-              name: `${peak} (ano recorde)`, type: 'line' as const, symbol: 'none', data: line(peak),
+              name: `${peak} (record year)`, type: 'line' as const, symbol: 'none', data: line(peak),
               lineStyle: { color: INK.hi, width: 1 }, itemStyle: { color: INK.hi },
             }]
           : []),
@@ -73,18 +73,18 @@ export function SeasonChart({ data }: { data: CalendarData }) {
         <span><i style={{ background: SERIES.accent }} />{data.current.year}</span>
         {peak && peak !== data.current.year && (
           <button className="legend-toggle" aria-pressed={showPeak} onClick={() => setShowPeak(!showPeak)}>
-            <i style={{ background: INK.hi }} />{peak} (recorde)
+            <i style={{ background: INK.hi }} />{peak} (record)
           </button>
         )}
-        <span style={{ color: INK.text }}><i className="dash" style={{ background: INK.text }} />mediana</span>
-        <span><i className="band" style={{ background: INK.text }} />faixa típica</span>
+        <span style={{ color: INK.text }}><i className="dash" style={{ background: INK.text }} />median</span>
+        <span><i className="band" style={{ background: INK.text }} />typical range</span>
       </div>
       <EChart option={option} height={240} />
     </div>
   )
 }
 
-/** Total anual harmonizado; faixa sobre os anos MODIS, ano corrente parcial. */
+/** Harmonized annual total; shading over the MODIS years, current year partial. */
 export function AnnualChart({ data, onPick }: { data: CalendarData; onPick: (y: number) => void }) {
   const { med, option } = useMemo(() => {
     const complete = data.annual.filter((a) => !a.partial && a.year >= data.baseline[0]).map((a) => a.total).sort((a, b) => a - b)
@@ -99,9 +99,9 @@ export function AnnualChart({ data, onPick }: { data: CalendarData; onPick: (y: 
         formatter: (p: unknown) => {
           const [first] = p as { dataIndex: number }[]
           const a = data.annual[first.dataIndex]
-          return `<div style="font-weight:600">${a.year}${a.partial ? ' (parcial)' : ''}</div>
-            <div style="font-size:18px;font-weight:650">${fmt(a.total)} focos</div>
-            <div style="color:${INK.text}">${a.converted ? 'MODIS Aqua convertido' : 'VIIRS S-NPP medido'}</div>`
+          return `<div style="font-weight:600">${a.year}${a.partial ? ' (partial)' : ''}</div>
+            <div style="font-size:18px;font-weight:650">${fmt(a.total)} hotspots</div>
+            <div style="color:${INK.text}">${a.converted ? 'Converted MODIS Aqua' : 'Measured VIIRS S-NPP'}</div>`
         },
       },
       xAxis: {
@@ -138,15 +138,15 @@ export function AnnualChart({ data, onPick }: { data: CalendarData; onPick: (y: 
   return (
     <div>
       <div className="chart-legend">
-        <span style={{ color: INK.text }}><i className="dash" style={{ background: INK.text }} />mediana {fmt(med)}</span>
-        <span><i className="band" style={{ background: INK.text }} />anos MODIS convertidos</span>
+        <span style={{ color: INK.text }}><i className="dash" style={{ background: INK.text }} />median {fmt(med)}</span>
+        <span><i className="band" style={{ background: INK.text }} />converted MODIS years</span>
       </div>
       <EChart option={option} height={240} onClick={(i) => onPick(data.annual[i].year)} />
     </div>
   )
 }
 
-/** Validacao da harmonizacao na sobreposicao (Amazonia inteira). */
+/** Validation of the harmonization over the overlap (whole Amazon). */
 export function ValidationChart({ data }: { data: ValidationData }) {
   const option = useMemo<EChartsOption>(() => {
     const labels = data.rows.map((r) => `${MONTHS[r.month - 1]} ${r.year}`)
@@ -167,14 +167,14 @@ export function ValidationChart({ data }: { data: ValidationData }) {
       },
       yAxis: { type: 'value', ...axisStyle, axisLabel: { ...axisStyle.axisLabel, formatter: (v: number) => fmt(v) } },
       series: [
-        s('VIIRS S-NPP (referência)', 'viirs_raw', SERIES.viirs),
-        s('MODIS Aqua bruto', 'modis_raw', SERIES.modis),
+        s('VIIRS S-NPP (reference)', 'viirs_raw', SERIES.viirs),
+        s('Raw MODIS Aqua', 'modis_raw', SERIES.modis),
         {
-          ...s('MODIS harmonizado', 'modis_harmonized', SERIES.accent, true),
+          ...s('Harmonized MODIS', 'modis_harmonized', SERIES.accent, true),
           markArea: i1 > 0 ? {
             silent: true, itemStyle: { color: 'rgba(255,255,255,0.03)' },
             label: { color: INK.muted, fontSize: 11, position: 'insideTop' },
-            data: [[{ name: `calibração ${c0}–${c1}`, xAxis: 0 }, { xAxis: i1 - 1 }], [{ name: 'teste (fora da amostra)', xAxis: i1 }, { xAxis: labels.length - 1 }]],
+            data: [[{ name: `calibration ${c0}–${c1}`, xAxis: 0 }, { xAxis: i1 - 1 }], [{ name: 'test (out of sample)', xAxis: i1 }, { xAxis: labels.length - 1 }]],
           } : undefined,
         },
       ],
@@ -184,9 +184,9 @@ export function ValidationChart({ data }: { data: ValidationData }) {
   return (
     <div>
       <div className="chart-legend">
-        <span><i style={{ background: SERIES.viirs }} />VIIRS S-NPP (referência)</span>
-        <span><i style={{ background: SERIES.modis }} />MODIS Aqua bruto</span>
-        <span style={{ color: SERIES.accent }}><i className="dash" style={{ background: SERIES.accent }} /><span style={{ color: INK.text }}>MODIS harmonizado</span></span>
+        <span><i style={{ background: SERIES.viirs }} />VIIRS S-NPP (reference)</span>
+        <span><i style={{ background: SERIES.modis }} />Raw MODIS Aqua</span>
+        <span style={{ color: SERIES.accent }}><i className="dash" style={{ background: SERIES.accent }} /><span style={{ color: INK.text }}>Harmonized MODIS</span></span>
       </div>
       <EChart option={option} height={240} />
     </div>

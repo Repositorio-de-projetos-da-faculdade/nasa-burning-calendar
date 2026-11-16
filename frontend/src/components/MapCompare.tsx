@@ -7,7 +7,7 @@ interface Props {
 
 const clamp = (s: number) => Math.min(0.95, Math.max(0.05, s))
 
-/** Divisor arrastável da comparação: período fixado à esquerda, período da linha do tempo à direita. */
+/** Draggable comparison divider: pinned period on the left, timeline period on the right. */
 export function MapCompare({ split, setSplit, left, right }: Props) {
   return (
     <div
@@ -15,7 +15,7 @@ export function MapCompare({ split, setSplit, left, right }: Props) {
       style={{ left: `${split * 100}%` }}
       role="slider"
       tabIndex={0}
-      aria-label={`Divisor da comparação entre ${left} e ${right}`}
+      aria-label={`Comparison divider between ${left} and ${right}`}
       aria-valuemin={5}
       aria-valuemax={95}
       aria-valuenow={Math.round(split * 100)}

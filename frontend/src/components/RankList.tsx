@@ -2,7 +2,7 @@ import type { CalendarData } from '../lib/api'
 import { fmt } from '../lib/format'
 import { heat } from '../lib/scales'
 
-/** Os anos completos com mais focos, em ordem; cada linha leva o mapa para aquele ano. */
+/** The complete years with the most hotspots, in order; each row takes the map to that year. */
 export function RankList({ data, active, onPick, top = 6 }: { data: CalendarData; active: number | null; onPick: (y: number) => void; top?: number }) {
   const rows = data.annual.filter((a) => !a.partial).sort((a, b) => b.total - a.total).slice(0, top)
   const max = rows[0]?.total ?? 1

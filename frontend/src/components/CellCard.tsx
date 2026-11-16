@@ -13,11 +13,11 @@ export interface CellHover {
   v: number
 }
 
-const RADIUS_KM = 6 // círculo de área próxima à da célula de 11 km
+const RADIUS_KM = 6 // circle with roughly the area of the 11 km cell
 
-/** Cartão da célula sob o cursor: focos no período e, depois de uma pausa, os anos daquele ponto. */
+/** Card for the cell under the cursor: hotspots in the period and, after a pause, the years at that spot. */
 export function CellCard({ hover, period }: { hover: CellHover; period: string }) {
-  // só busca a história quando o cursor para: passar por cima do mapa não dispara uma consulta por célula
+  // only fetch the history once the cursor rests: moving across the map does not fire one query per cell
   const [settled, setSettled] = useState<string | null>(null)
   const key = `${hover.lon},${hover.lat}`
   useEffect(() => {
@@ -39,13 +39,13 @@ export function CellCard({ hover, period }: { hover: CellHover; period: string }
         y: hover.y,
         content: (
           <>
-            <div className="tip-title">{period}<span>célula de 11 km</span></div>
-            <div className="tip-big num">{fmt(hover.v)} focos</div>
+            <div className="tip-title">{period}<span>11 km cell</span></div>
+            <div className="tip-big num">{fmt(hover.v)} hotspots</div>
             <div className="spark" aria-hidden="true">
               {annual.map((a) => <i key={a.year} style={{ height: `${Math.max(4, (a.total / max) * 100)}%`, background: heat(a.total / max) }} />)}
             </div>
             <div className="tip-row">
-              {annual.length ? <><span>{annual[0].year}</span><span>focos por ano neste ponto</span><span>{annual[annual.length - 1].year}</span></> : <span>carregando os anos…</span>}
+              {annual.length ? <><span>{annual[0].year}</span><span>hotspots per year at this spot</span><span>{annual[annual.length - 1].year}</span></> : <span>loading the years…</span>}
             </div>
           </>
         ),

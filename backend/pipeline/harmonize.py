@@ -1,27 +1,27 @@
-"""Harmonizacao de tres geracoes de sensores numa unica serie "equivalente VIIRS S-NPP".
+"""Harmonization of three sensor generations into a single "VIIRS S-NPP equivalent" series.
 
-    MODIS Aqua (2002-)  --k-->   VIIRS S-NPP (2012-, referencia)   <--k2--  VIIRS NOAA-20 (2018-)
+    MODIS Aqua (2002-)  --k-->   VIIRS S-NPP (2012-, reference)   <--k2--  VIIRS NOAA-20 (2018-)
 
-Ideia:
-  1. Filtra focos de vegetacao (type 0 ou ausente) com confianca nominal/alta.
-  2. Um satelite por geracao, todos com passagem ~13h30 (Aqua, S-NPP, NOAA-20), para nao
-     contar o mesmo fogo varias vezes.
-  3. Agrega em grade comum (celula x dia).
-  4. Nos periodos de sobreposicao ajusta fatores por bloco espacial e mes do ano, com
-     encolhimento (shrinkage) para o fator regional quando o bloco tem poucos dados:
-        k  = S-NPP / Aqua      (calibrado em CALIB_YEARS)
-        k2 = S-NPP / NOAA-20   (calibrado em toda a sobreposicao)
-  5. Serie harmonizada, dia a dia:
-        antes do S-NPP          -> Aqua * k
-        enquanto o S-NPP opera  -> S-NPP medido
-        depois do fim do S-NPP  -> NOAA-20 * k2
+Approach:
+  1. Keep vegetation hotspots (type 0 or missing) with nominal/high confidence.
+  2. One satellite per generation, all with a ~13:30 overpass (Aqua, S-NPP, NOAA-20), so the
+     same fire is not counted several times.
+  3. Aggregate on a common grid (cell x day).
+  4. In the overlap periods, fit factors per spatial tile and month of the year, with
+     shrinkage towards the regional factor when the tile has little data:
+        k  = S-NPP / Aqua      (calibrated over CALIB_YEARS)
+        k2 = S-NPP / NOAA-20   (calibrated over the whole overlap)
+  5. Harmonized series, day by day:
+        before S-NPP            -> Aqua * k
+        while S-NPP operates    -> measured S-NPP
+        after S-NPP ends        -> NOAA-20 * k2
 
-Saidas em data/processed/:
-  daily_cells.parquet    celula x dia (harmonizado)
-  monthly_cells.parquet  celula x ano x mes (brutos, convertidos e harmonizado)
-  coverage.parquet       dias com dados e fonte usada
-  calibration.parquet    k e k2 por bloco x mes do ano
-  validation.parquet     totais regionais mensais (grafico de validacao)
+Outputs in data/processed/:
+  daily_cells.parquet    cell x day (harmonized)
+  monthly_cells.parquet  cell x year x month (raw, converted and harmonized)
+  coverage.parquet       days with data and the source used
+  calibration.parquet    k and k2 per tile x month of the year
+  validation.parquet     monthly regional totals (validation chart)
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ import duckdb
 
 from app.config import Settings
 
-SHRINK_ALPHA = 50.0  # "pseudo-focos" que puxam o fator do bloco para o fator regional
+SHRINK_ALPHA = 50.0  # "pseudo-hotspots" that pull the tile factor towards the regional factor
 
 
 def _calib_sql(name: str, num: str, den: str, where: str) -> str:
@@ -71,7 +71,7 @@ def harmonize(settings: Settings) -> dict[str, float | str | None]:
                min(date) FILTER (WHERE n20_n > 0) FROM d
     """).fetchone()
     if snpp0 is None:
-        raise RuntimeError("Sem dados VIIRS S-NPP: nao ha referencia para harmonizar.")
+        raise RuntimeError("No VIIRS S-NPP data: there is no reference to harmonize against.")
     era = f"""CASE WHEN date < DATE '{snpp0}' THEN 'modis'
                    WHEN date <= DATE '{snpp1}' THEN 'snpp' ELSE 'n20' END"""
 
@@ -79,7 +79,7 @@ def harmonize(settings: Settings) -> dict[str, float | str | None]:
         CREATE TEMP TABLE m AS
         SELECT cell_x, cell_y, year(date) AS year, month(date) AS month,
                sum(modis_n) AS modis_n, sum(viirs_n) AS viirs_n, sum(n20_n) AS n20_n,
-               -- so dias em que o par de sensores coexistiu entram na calibracao do NOAA-20
+               -- only days when both sensors coexisted go into the NOAA-20 calibration
                sum(viirs_n) FILTER (WHERE date >= DATE '{n20_0 or '9999-12-31'}') AS viirs_ov,
                sum(n20_n)   FILTER (WHERE date <= DATE '{snpp1}')                AS n20_ov,
                CAST(floor(cell_x / {per_tile}) AS INTEGER) AS tile_x,

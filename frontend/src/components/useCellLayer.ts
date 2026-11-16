@@ -8,13 +8,13 @@ export interface Field {
 }
 
 const FADE_MS = 180
-/** Trocas mais próximas que isto são um arrasto (ou o timelapse rápido): sem fusão, cada quadro já é o período. */
+/** Changes closer together than this are a scrub (or the fast timelapse): no cross-fade, each frame is already the period. */
 const SCRUB_MS = 300
 
 /**
- * Mantém a textura do mapa de calor: funde um período no seguinte e, com um período fixado,
- * mostra-o à esquerda do divisor (`split`, fração da largura do mapa).
- * Devolve o canvas a registrar como fonte `cells`.
+ * Maintains the heat map texture: cross-fades one period into the next and, with a pinned period,
+ * shows it left of the divider (`split`, fraction of the map width).
+ * Returns the canvas to register as the `cells` source.
  */
 export function useCellLayer(mapRef: RefObject<maplibregl.Map | null>, ready: boolean, current: Field | undefined, pinned: Field | undefined, split: number) {
   const [view] = useState(makeCanvas)
@@ -34,7 +34,7 @@ export function useCellLayer(mapRef: RefObject<maplibregl.Map | null>, ready: bo
     if (fadeIn) lastShown.current = performance.now()
     if (!fadeIn || scrubbing || matchMedia('(prefers-reduced-motion: reduce)').matches) {
       compose(view, a, b, splitX)
-      // fonte estática: play + pause força o reenvio da textura
+      // static source: play + pause forces the texture to be re-uploaded
       src.play()
       src.pause()
       return
@@ -57,7 +57,7 @@ export function useCellLayer(mapRef: RefObject<maplibregl.Map | null>, ready: bo
     show(true)
   }, [ready, pinned, show])
 
-  // o corte é uma longitude: mover o divisor ou o mapa muda onde ela cai na textura
+  // the cut is a longitude: moving the divider or the map changes where it falls on the texture
   useEffect(() => {
     splitRef.current = split
     show(false)

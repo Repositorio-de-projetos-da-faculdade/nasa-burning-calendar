@@ -16,31 +16,31 @@ interface Props {
   setLayer: (l: Layer) => void
   playing: boolean
   setPlaying: (p: boolean) => void
-  /** Período fixado para comparar no mapa (ou nenhum). */
+  /** Period pinned for comparison on the map (or none). */
   pinned: Layer | null
   onPin: () => void
   relief: boolean
   onRelief: () => void
 }
 
-/** As barras só dependem dos dados: memoizadas, arrastar não as recria. */
+/** The bars depend only on the data: memoized, so scrubbing does not rebuild them. */
 const Bars = memo(function Bars({ bars }: { bars: number[] }) {
   return bars.map((h, i) => <i key={i} style={{ height: `${h}%`, background: heat(h / 100) }} />)
 })
 
 /**
- * Os anos de satélite como uma faixa só: uma barra por mês, altura pelos focos da área.
- * Arrastar sobre ela escolhe o período mostrado no mapa.
+ * The satellite years as a single strip: one bar per month, height by the area's hotspots.
+ * Dragging across it picks the period shown on the map.
  */
 export function Timeline({ d, layer, setLayer, playing, setPlaying, pinned, onPin, relief, onRelief }: Props) {
   const y0 = d.years[0]
   const nYears = d.years.length
 
   const [hover, setHover] = useState<number | null>(null)
-  // o mapa do período ainda está a caminho (mesma consulta do mapa, pelo cache)
+  // the period's map is still on its way (same query as the map, via the cache)
   const loading = useQuery(gridQuery(layer)).isFetching
   const preloaded = usePreloadGrids(d, layer.year)
-  // a linha do tempo só é liberada com o histórico inteiro em memória: daí em diante nada espera a rede
+  // the timeline is unlocked only once the whole history is in memory: from then on nothing waits for the network
   const locked = preloaded < 1
 
   const { bars, byKey } = useMemo(() => {
@@ -55,7 +55,7 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying, pinned, onPi
   }, [d, y0, nYears])
 
   const byYear = layer.year != null && layer.month == null
-  // faixa de destaque: o mês (1 barra) ou o ano inteiro (12 barras)
+  // highlight band: the month (1 bar) or the whole year (12 bars)
   const litStart = layer.year == null ? null : (layer.year - y0) * 12 + (layer.month ?? 1) - 1
   const litSpan = layer.month == null ? 12 : 1
 
@@ -78,35 +78,35 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying, pinned, onPi
     pick(Math.min(bars.length - 1, Math.max(0, cur + dir * (byYear ? 12 : 1))))
   }
 
-  const now = layer.year == null ? 'média de todos os anos' : `${layer.month ? MONTHS_LONG[layer.month - 1] + ' de ' : ''}${layer.year}`
+  const now = layer.year == null ? 'mean of all years' : `${layer.month ? MONTHS_LONG[layer.month - 1] + ' ' : ''}${layer.year}`
   const lastFull = y0 + nYears - 2
 
   return (
     <div className="widget timeline" aria-busy={loading}>
       {locked ? <i className="tl-progress" style={{ width: `${preloaded * 100}%` }} /> : loading && <div className="loading-bar" />}
       <div className="tl-controls">
-        <button className="play" disabled={locked} onClick={() => setPlaying(!playing)} aria-label={playing ? 'Pausar a passagem do tempo' : 'Passar o tempo'}>
+        <button className="play" disabled={locked} onClick={() => setPlaying(!playing)} aria-label={playing ? 'Pause the timelapse' : 'Play the timelapse'}>
           {playing ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" style={{ marginLeft: 2 }} />}
         </button>
         <Hud d={d} layer={layer} />
-        {/* o mês sob o cursor, antes de clicar; enquanto o histórico baixa, o quanto falta */}
+        {/* the month under the cursor, before clicking; while the history downloads, how much is left */}
         <p className="tl-read num" aria-hidden="true">
-          {locked && <>Carregando histórico <b>{Math.round(preloaded * 100)}%</b></>}
+          {locked && <>Loading history <b>{Math.round(preloaded * 100)}%</b></>}
           {!locked && hover != null && byKey.has(hover) && (
-            <>{MONTHS[hover % 12]} {y0 + Math.floor(hover / 12)} <b>{fmt(byKey.get(hover)!)}</b> focos</>
+            <>{MONTHS[hover % 12]} {y0 + Math.floor(hover / 12)} <b>{fmt(byKey.get(hover)!)}</b> hotspots</>
           )}
         </p>
-        <div className="seg" role="group" aria-label="Período no mapa" inert={locked}>
-          <button data-active={layer.month != null} onClick={() => setLayer({ year: layer.year ?? lastFull, month: layer.month ?? 9 })}>Mês</button>
-          <button data-active={byYear} onClick={() => setLayer({ year: layer.year ?? lastFull, month: null })}>Ano</button>
-          <button data-active={layer.year == null} onClick={() => setLayer({ year: null, month: null })}>Média</button>
+        <div className="seg" role="group" aria-label="Period on the map" inert={locked}>
+          <button data-active={layer.month != null} onClick={() => setLayer({ year: layer.year ?? lastFull, month: layer.month ?? 9 })}>Month</button>
+          <button data-active={byYear} onClick={() => setLayer({ year: layer.year ?? lastFull, month: null })}>Year</button>
+          <button data-active={layer.year == null} onClick={() => setLayer({ year: null, month: null })}>Mean</button>
         </div>
-        <div className="seg" role="group" aria-label="Visualização do mapa">
-          <button data-active={!!pinned} onClick={onPin} title="Fixa o período atual de um lado do mapa; a linha do tempo muda o outro">
-            <Columns2 size={14} />{pinned ? `Comparando com ${periodLabel(pinned)}` : 'Comparar'}
+        <div className="seg" role="group" aria-label="Map view">
+          <button data-active={!!pinned} onClick={onPin} title="Pins the current period on one side of the map; the timeline changes the other">
+            <Columns2 size={14} />{pinned ? `Comparing with ${periodLabel(pinned)}` : 'Compare'}
           </button>
-          <button data-active={relief} onClick={onRelief} title="Mostra os focos como colunas em relevo">
-            <Box size={14} />Relevo
+          <button data-active={relief} onClick={onRelief} title="Shows the hotspots as raised columns">
+            <Box size={14} />Relief
           </button>
         </div>
       </div>
@@ -116,7 +116,7 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying, pinned, onPi
         inert={locked}
         role="slider"
         tabIndex={0}
-        aria-label="Período mostrado no mapa"
+        aria-label="Period shown on the map"
         aria-valuemin={y0}
         aria-valuemax={y0 + nYears - 1}
         aria-valuenow={layer.year ?? y0}
@@ -127,7 +127,7 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying, pinned, onPi
         }}
         onPointerMove={(e) => {
           const i = indexAt(e)
-          if (i === hover) return // mesmo mês: nada a refazer
+          if (i === hover) return // same month: nothing to redo
           setHover(i)
           if (e.buttons === 1) pick(i)
         }}
@@ -146,7 +146,7 @@ export function Timeline({ d, layer, setLayer, playing, setPlaying, pinned, onPi
         ))}
       </div>
 
-      {/* o que explica o mapa mora com o que o controla: legenda e créditos */}
+      {/* what explains the map lives with what controls it: legend and credits */}
       <div className="tl-foot">
         <MapKey />
         <p>
